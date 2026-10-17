@@ -39,6 +39,16 @@
 - gui: Connected the "edit metadata" action of TAF files in the file browser with the Custom Model Editor, incl. track rows from the TAF header with their duration and a hint when a custom model overrides an original tonie [https://github.com/toniebox-reverse-engineering/teddycloud_web/issues/341](https://github.com/toniebox-reverse-engineering/teddycloud_web/issues/341)
 - gui: Track names in the Custom Model Editor keep their position, unnamed tracks in between are no longer dropped
 - gui: Box setup can create a port patch for CC3200 boxes (altPort.custom.json) and patch the port of ESP32 boxes, e.g. for a proxy that routes boxes by port (not possible for CC3235 boxes and the Toniebox 2)
+- Added support for the custom firmware (CFW) of CC3200 and ESP32 boxes, behind the setting `cfw.enabled` (off by default; off: TeddyCloud behaves as without CFW support): settings files for tags and boxes, remote commands over the log connection, status and battery report, delivery of CFW images and release packages with their setup pages (upload, GitHub download, per box or channel), and the return of an ESP32 box to its original firmware
+- Settings with fixed values report them in the settings index; `getIndex?groups=true` also lists the group titles
+- Fixed settings reloads getting slow with many overlays (the list of parked settings grew by one entry at a time)
+- gui: Added settings of the custom firmware (CFW) for tags (figure profile or event tag) in the Tonie edit dialog; the source is hidden for event tags
+- gui: Added remote control, status, battery voltage and charging station of CFW boxes to the box list
+- gui: Added "Box Update" page to upload CFW images and release packages with their setup pages, download them from GitHub (release, beta, alpha) and deliver them to selected boxes, also the original firmware for the return of an ESP32 box
+- gui: Everything of the CFW is hidden while CFW support is off or the server has none
+- gui: Settings, setting groups and fixed setting values are now translated
+- gui: Settings with fixed values (e.g. LED, maximum volume) are shown as dropdowns
+- gui: Fixed settings listeners: removing a listener had no effect, and id listeners were added to the general listeners again on every render
 
 ### Commits
 

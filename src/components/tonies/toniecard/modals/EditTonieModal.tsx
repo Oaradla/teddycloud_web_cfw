@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Divider, Form, Input, Modal, theme, Tooltip, Typography } from "antd";
+import { Alert, Button, Divider, Form, Input, Modal, theme, Tooltip, Typography } from "antd";
 import {
     CloseOutlined,
     EditOutlined,
@@ -18,6 +18,10 @@ import { ToniesJsonSearch } from "../../common/searches/ToniesJsonSearch";
 import { RadioStreamSearch } from "../search/RadioStreamSearch";
 import { toModelKey } from "../../utils/modelKey";
 import { useAssignSiblingEpisode } from "../hooks/useAssignSiblingEpisode";
+import { CfwTagSettings, CfwTagSettingsHandle } from "../../../cfw/CfwTagSettings";
+import { useTeddyCloud } from "../../../../provider/TeddyCloudProvider";
+import { NotificationTypeEnum } from "../../../../types/teddyCloudNotificationTypes";
+import { useCfwTagSettingsVisible } from "../../../cfw/useCfwTagSettingsVisible";
 
 const { useToken } = theme;
 const { Text } = Typography;
@@ -84,6 +88,9 @@ interface EditTonieModalProps {
     // Model of the selected audio (resolved by the backend)
     audioModel?: string;
     onSetModelFromAudio?: () => void;
+
+    /** the tag, for its settings of the custom firmware */
+    ruid?: string;
 }
 
 export const EditTonieModal: React.FC<EditTonieModalProps> = ({
@@ -120,9 +127,58 @@ export const EditTonieModal: React.FC<EditTonieModalProps> = ({
     audioInfoTooltip,
     audioModel,
     onSetModelFromAudio,
+    ruid,
 }) => {
     const { t } = useTranslation();
     const { token } = useToken();
+    const { addNotification } = useTeddyCloud();
+    const cfwRef = useRef<CfwTagSettingsHandle>(null);
+    const showCfw = useCfwTagSettingsVisible(open && Boolean(ruid));
+    const [cfwDirty, setCfwDirty] = useState(false);
+    const [cfwKind, setCfwKind] = useState("none");
+    const [saving, setSaving] = useState(false);
+    // an event tag plays nothing, so it has no source
+    const isEventTag = Boolean(ruid) && showCfw && cfwKind === "event";
+
+    // the CFW settings are stored first, the content only when they were saved
+    const handleSave = async () => {
+        if (cfwDirty && cfwRef.current) {
+            setSaving(true);
+            try {
+                const result = await cfwRef.current.save();
+                if (!result.ok) {
+                    addNotification(
+                        NotificationTypeEnum.Error,
+                        t("cfw.saveError"),
+                        result.message,
+                        t("tonies.title"),
+                    );
+                    return;
+                }
+                addNotification(
+                    NotificationTypeEnum.Success,
+                    t("cfw.saved"),
+                    t("cfw.savedDetails"),
+                    t("tonies.title"),
+                );
+            } catch (error) {
+                addNotification(
+                    NotificationTypeEnum.Error,
+                    t("cfw.saveError"),
+                    String(error),
+                    t("tonies.title"),
+                );
+                return;
+            } finally {
+                setSaving(false);
+            }
+        }
+        if (hasPendingChanges) {
+            onSave();
+        } else {
+            onCancel();
+        }
+    };
 
     const {
         nextEpisodeAvailable,
@@ -231,16 +287,30 @@ export const EditTonieModal: React.FC<EditTonieModalProps> = ({
             onCancel={onCancel}
             title={title}
             footer={
-                <Button type="primary" onClick={onSave} disabled={!hasPendingChanges}>
+                <Button
+                    type="primary"
+                    onClick={handleSave}
+                    loading={saving}
+                    disabled={!hasPendingChanges && !cfwDirty}
+                >
                     <SaveFilled key="saveClick" /> {t("tonies.editModal.save")}
                 </Button>
             }
             width={700}
         >
-            <Divider orientation="horizontal" titlePlacement="left">
-                {t("tonies.editModal.source")}
-            </Divider>
-            <div>
+            {isEventTag ? (
+                <Alert
+                    type="info"
+                    showIcon
+                    style={{ marginBottom: 16 }}
+                    title={t("cfw.event.noSource")}
+                />
+            ) : (
+                <Divider orientation="horizontal" titlePlacement="left">
+                    {t("tonies.editModal.source")}
+                </Divider>
+            )}
+            <div hidden={isEventTag}>
                 <Form.Item
                     validateStatus={inputValidationSource.validateStatus}
                     help={inputValidationSource.help}
@@ -473,6 +543,19 @@ export const EditTonieModal: React.FC<EditTonieModalProps> = ({
                     </Form.Item>
                 )}
             </div>
+            {ruid && showCfw && (
+                <>
+                    <Divider orientation="horizontal" titlePlacement="left">
+                        {t("cfw.sectionTitle")}
+                    </Divider>
+                    <CfwTagSettings
+                        ref={cfwRef}
+                        ruid={ruid}
+                        onDirtyChange={setCfwDirty}
+                        onKindChange={setCfwKind}
+                    />
+                </>
+            )}
         </Modal>
     );
 };

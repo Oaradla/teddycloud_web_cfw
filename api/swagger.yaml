@@ -80,6 +80,13 @@ paths:
             tags:
                 - TeddyCloud
             description: get all options
+            parameters:
+                - name: groups
+                  in: query
+                  schema:
+                      type: boolean
+                  required: false
+                  description: Also list the group titles (type "desc").
             responses:
                 "200":
                     description: all options recieved as array
@@ -657,6 +664,24 @@ components:
                 overlayed:
                     type: string
                     description: "Object overlayed"
+                values:
+                    type: array
+                    description: "Fixed values of the object"
+                    items:
+                        type: object
+                        required:
+                            - value
+                            - label
+                        properties:
+                            value:
+                                type: integer
+                                description: "Value"
+                            label:
+                                type: string
+                                description: "Value label"
+                derived:
+                    type: boolean
+                    description: "Object value derived from other settings"
 
     responses:
         BadRequest:

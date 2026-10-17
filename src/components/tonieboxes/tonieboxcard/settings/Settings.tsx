@@ -9,10 +9,12 @@ import { defaultAPIConfig } from "../../../../config/defaultApiConfig";
 import LoadingSpinner from "../../../common/elements/LoadingSpinner";
 import { NotificationTypeEnum } from "../../../../types/teddyCloudNotificationTypes";
 import { useTeddyCloud } from "../../../../provider/TeddyCloudProvider";
-import { SettingsOptionItem } from "../../../common/form/SettingsOptionItem";
+import { SettingsList, settingGroupTitles } from "../../../common/form/SettingsList";
 import SettingsButton from "../../../common/buttons/SettingsButtons";
 import SettingsDataHandler from "../../../../data/SettingsDataHandler";
 import { useTriggerWriteConfig } from "../hooks/useTriggerWriteConfig";
+import { shownInBoxDialog } from "../../../cfw/cfwSettingsVisibility";
+import { useCfwBoxDialog } from "../../../cfw/useCfwBoxDialog";
 
 const api = new TeddyCloudApi(defaultAPIConfig());
 
@@ -34,6 +36,8 @@ export const Settings: React.FC<{ overlay: string; onClose?: () => void }> = ({
     const [reloadCount, setReloadCount] = useState(0); // eslint-disable-line @typescript-eslint/no-unused-vars
 
     SettingsDataHandler.initialize(addNotification, t);
+
+    const cfwState = useCfwBoxDialog(overlay, !loading);
 
     useEffect(() => {
         const listener = () => setReloadCount((prev) => prev + 1);
@@ -168,75 +172,23 @@ export const Settings: React.FC<{ overlay: string; onClose?: () => void }> = ({
                         }}
                     >
                         <Form labelCol={{ span: 8 }} wrapperCol={{ span: 14 }} layout="horizontal">
-                            {options?.options?.map((option, index, array) => {
-                                if (
-                                    option.iD.includes("core.settings_level") ||
-                                    (!option.iD.includes("core.certdir") &&
-                                        !option.iD.includes("core.client_cert.") &&
-                                        !option.iD.includes("core.flex_") &&
-                                        !option.iD.includes("core.contentdir") &&
-                                        !option.iD.includes("toniebox.") &&
-                                        !option.iD.includes("cloud.enabled") &&
-                                        !option.iD.includes("cloud.enableV1Claim") &&
-                                        !option.iD.includes("cloud.enableV1CloudReset") &&
-                                        !option.iD.includes("cloud.enableV1FreshnessCheck") &&
-                                        !option.iD.includes("cloud.enableV1Log") &&
-                                        !option.iD.includes("cloud.enableV1Time") &&
-                                        !option.iD.includes("cloud.enableV1Ota") &&
-                                        !option.iD.includes("cloud.enableV2Content") &&
-                                        !option.iD.includes("cloud.cacheOta") &&
-                                        !option.iD.includes("cloud.localOta") &&
-                                        !option.iD.includes("cloud.cacheContent") &&
-                                        !option.iD.includes("cloud.cacheToLibrary") &&
-                                        !option.iD.includes("cloud.markCustomTagByPass") &&
-                                        !option.iD.includes("cloud.prioCustomContent") &&
-                                        !option.iD.includes("cloud.updateOnLowerAudioId") &&
-                                        !option.iD.includes("cloud.dumpRuidAuthContentJson"))
-                                ) {
-                                    return null;
-                                }
-
-                                const parts = option.iD.split(".");
-                                const lastParts = array[index - 1]
-                                    ? array[index - 1].iD.split(".")
-                                    : [];
-                                return (
-                                    <React.Fragment key={index}>
-                                        {parts.slice(0, -1).map((part, partIndex) => {
-                                            if (lastParts[partIndex] !== part) {
-                                                if (partIndex === 0) {
-                                                    return (
-                                                        <h3
-                                                            style={{
-                                                                marginLeft: `${partIndex * 20}px`,
-                                                                marginBottom: "10px",
-                                                            }}
-                                                            key={`category-${part}`}
-                                                        >
-                                                            Category {part}
-                                                        </h3>
-                                                    );
-                                                } else {
-                                                    return (
-                                                        <h4
-                                                            style={{
-                                                                marginLeft: `${partIndex * 10}px`,
-                                                                marginTop: "10px",
-                                                                marginBottom: "10px",
-                                                            }}
-                                                            key={`category-${part}`}
-                                                        >
-                                                            .{part}
-                                                        </h4>
-                                                    );
-                                                }
-                                            }
-                                            return null;
-                                        })}
-                                        <SettingsOptionItem iD={option.iD} overlayId={overlay} />
-                                    </React.Fragment>
-                                );
-                            })}
+                            <SettingsList
+                                overlayId={overlay}
+                                titles={settingGroupTitles(options?.options ?? [])}
+                                options={(options?.options ?? []).filter(
+                                    (option) =>
+                                        option.type !== "desc" &&
+                                        shownInBoxDialog(
+                                            option.iD,
+                                            cfwState,
+                                            Boolean(
+                                                SettingsDataHandler.getInstance().getSetting(
+                                                    option.iD,
+                                                )?.overlayed,
+                                            ),
+                                        ),
+                                )}
+                            />
                         </Form>
                     </Formik>
                     <Divider>{t("settings.levelLabel")}</Divider>

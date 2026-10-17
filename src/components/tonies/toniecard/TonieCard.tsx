@@ -683,6 +683,7 @@ export const TonieCard: React.FC<{
                     title={editModalTitle}
                     onCancel={() => setIsEditModalOpen(false)}
                     onSave={handleSaveChanges}
+                    ruid={tonieCard.ruid}
                     selectedSource={selectedSource}
                     onSelectedSourceChange={(value) => {
                         setSelectedSource(value);

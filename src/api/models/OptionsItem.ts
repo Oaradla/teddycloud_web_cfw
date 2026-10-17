@@ -13,6 +13,11 @@
  */
 
 import { exists, mapValues } from "../runtime";
+import type { OptionsItemValuesInner } from "./OptionsItemValuesInner";
+import {
+    OptionsItemValuesInnerFromJSON,
+    OptionsItemValuesInnerToJSON,
+} from "./OptionsItemValuesInner";
 /**
  * Option item.
  * @export
@@ -63,6 +68,18 @@ export interface OptionsItem {
      * @memberof OptionsItem
      */
     overlayed: boolean;
+    /**
+     * Fixed values of the object
+     * @type {Array<OptionsItemValuesInner>}
+     * @memberof OptionsItem
+     */
+    values?: Array<OptionsItemValuesInner>;
+    /**
+     * Object value derived from other settings
+     * @type {boolean}
+     * @memberof OptionsItem
+     */
+    derived?: boolean;
 }
 
 /**
@@ -97,6 +114,10 @@ export function OptionsItemFromJSONTyped(json: any, ignoreDiscriminator: boolean
         type: json["type"],
         value: json["value"],
         overlayed: json["overlayed"],
+        values: !exists(json, "values")
+            ? undefined
+            : (json["values"] as Array<any>).map(OptionsItemValuesInnerFromJSON),
+        derived: !exists(json, "derived") ? undefined : json["derived"],
     };
 }
 
@@ -115,5 +136,10 @@ export function OptionsItemToJSON(value?: OptionsItem | null): any {
         type: value.type,
         value: value.value,
         overlayed: value.overlayed,
+        values:
+            value.values === undefined
+                ? undefined
+                : (value.values as Array<any>).map(OptionsItemValuesInnerToJSON),
+        derived: value.derived,
     };
 }

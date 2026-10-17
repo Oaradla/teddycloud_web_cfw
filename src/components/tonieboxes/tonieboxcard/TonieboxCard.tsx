@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Card, theme, Tooltip } from "antd";
 import {
+    ControlOutlined,
     EditOutlined,
     SafetyCertificateOutlined,
     SettingOutlined,
@@ -31,6 +32,9 @@ import { DeleteModal } from "./modals/DeleteModal";
 import { useTriggerWriteConfig } from "./hooks/useTriggerWriteConfig";
 import { canHover } from "../../../utils/browser/browserUtils";
 import { withBase } from "../../../utils/basePath";
+import { CfwBox, cfwRemoteAvailable } from "../../../api/cfwApi";
+import { CfwBoxTags } from "../../cfw/CfwBoxTags";
+import { CfwRemoteModal } from "../../cfw/CfwRemoteModal";
 
 const api = new TeddyCloudApi(defaultAPIConfig());
 
@@ -42,7 +46,10 @@ export const TonieboxCard: React.FC<{
     tonieboxImages: TonieboxImage[];
     readOnly?: boolean;
     checkCC3200CFW?: boolean;
-}> = ({ tonieboxCard, tonieboxImages, readOnly = false, checkCC3200CFW = false }) => {
+    /** the box as teddyCloud's custom firmware support sees it; unrelated to the Hackiebox CFW
+     * that checkCC3200CFW / cfwInstalled detect */
+    cfwBox?: CfwBox;
+}> = ({ tonieboxCard, tonieboxImages, readOnly = false, checkCC3200CFW = false, cfwBox }) => {
     const { t, i18n } = useTranslation();
     const { token } = useToken();
     const { addNotification, addLoadingNotification, closeLoadingNotification } = useTeddyCloud();
@@ -68,6 +75,8 @@ export const TonieboxCard: React.FC<{
     const [isConfirmDeleteModalOpen, setIsConfirmDeleteModalOpen] = useState(false);
     const [tonieboxAccessApi, setTonieboxAccessApi] = useState<boolean>(true);
     const [modalKey, setModalKey] = useState(0);
+    const [isRemoteModalOpen, setIsRemoteModalOpen] = useState(false);
+    const cfwRemote = cfwRemoteAvailable(cfwBox);
     const { status: certStatus } = useBoxCertificate(tonieboxCard.ID);
 
     useEffect(() => {
@@ -655,6 +664,16 @@ export const TonieboxCard: React.FC<{
                                   style={{ marginRight: 8 }}
                                   onClick={handleEditSettingsClick}
                               />,
+                              ...(cfwRemote
+                                  ? [
+                                        <Tooltip key="cfw-remote" title={t("cfw.remote.open")}>
+                                            <ControlOutlined
+                                                style={{ marginRight: 8 }}
+                                                onClick={() => setIsRemoteModalOpen(true)}
+                                            />
+                                        </Tooltip>,
+                                    ]
+                                  : []),
                               <DeleteOutlined
                                   key="delete"
                                   style={{ marginRight: 8 }}
@@ -701,6 +720,7 @@ export const TonieboxCard: React.FC<{
                                 </Tooltip>
                             )
                         ) : null,
+                        <CfwBoxTags key="box-cfw" box={cfwBox} />,
                         <span key="box-version">
                             {" "}
                             {(tonieboxVersion !== "UNKNOWN" &&
@@ -748,6 +768,14 @@ export const TonieboxCard: React.FC<{
                 modalKey={modalKey}
                 onClose={handleEditSettingsCancel}
             />
+
+            {cfwRemote && isRemoteModalOpen && (
+                <CfwRemoteModal
+                    boxId={tonieboxCard.ID}
+                    boxName={tonieboxCard.boxName}
+                    onClose={() => setIsRemoteModalOpen(false)}
+                />
+            )}
 
             <CertificatesModal
                 open={isUploadCertificatesModalOpen}

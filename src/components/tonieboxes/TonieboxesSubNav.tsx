@@ -11,17 +11,20 @@ import {
     PlusOutlined,
     PlusSquareOutlined,
     SearchOutlined,
+    CloudUploadOutlined,
 } from "@ant-design/icons";
 import { useTeddyCloud } from "../../provider/TeddyCloudProvider";
 import { StyledSubMenu } from "../common/StyledComponents";
 import { TonieboxIcon } from "../common/icons/TonieboxIcon";
 import { TeddyCloudSection } from "../../types/pluginsMetaTypes";
+import { useCfwEnabled } from "../cfw/useCfwEnabled";
 
 export const TonieboxesSubNav = () => {
     const { t, i18n } = useTranslation();
     const { setNavOpen, setSubNavOpen, setCurrentTCSection, plugins } = useTeddyCloud();
     const location = useLocation();
     const [openKeys, setOpenKeys] = useState<string[]>([]);
+    const cfwEnabled = useCfwEnabled();
     const currentLanguage = i18n.language;
     useEffect(() => {
         setCurrentTCSection(t("tonieboxes.navigationTitle"));
@@ -117,6 +120,26 @@ export const TonieboxesSubNav = () => {
             icon: React.createElement(TonieboxIcon),
             title: t("tonieboxes.navigationTitle"),
         },
+        ...(cfwEnabled
+            ? [
+                  {
+                      key: "boxupdate",
+                      label: (
+                          <Link
+                              to="/tonieboxes/boxupdate"
+                              onClick={() => {
+                                  setNavOpen(false);
+                                  setSubNavOpen(false);
+                              }}
+                          >
+                              {t("cfw.update.navigationTitle")}
+                          </Link>
+                      ),
+                      icon: React.createElement(CloudUploadOutlined),
+                      title: t("cfw.update.navigationTitle"),
+                  },
+              ]
+            : []),
         {
             key: "boxsetup",
             label: (

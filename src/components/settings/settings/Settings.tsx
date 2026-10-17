@@ -7,15 +7,14 @@ import SettingsDataHandler from "../../../data/SettingsDataHandler";
 import { useTeddyCloud } from "../../../provider/TeddyCloudProvider";
 import LoadingSpinner from "../../common/elements/LoadingSpinner";
 import SettingsButton from "../../common/buttons/SettingsButtons";
-import { SettingsOptionItem } from "../../common/form/SettingsOptionItem";
+import { SettingsList, settingGroupTitles } from "../../common/form/SettingsList";
+import { OptionsItem } from "../../../api";
 import { useSettingsData } from "./hooks/useSettingsData";
 import { useStickySavePanel } from "./hooks/useStickySavePanel";
+import { hiddenInGlobalSettings } from "../../cfw/cfwSettingsVisibility";
+import { useCfwGlobalSettings } from "../../cfw/useCfwGlobalSettings";
 
 const { useToken } = theme;
-
-type SettingsOption = {
-    iD: string;
-};
 
 export const Settings: React.FC = () => {
     const { t } = useTranslation();
@@ -27,7 +26,9 @@ export const Settings: React.FC = () => {
     const { options, settingsLevel, loading, handleChangeSettingsLevel } = useSettingsData();
     const { footerHeight, showArrow } = useStickySavePanel();
 
-    const settingsOptions: SettingsOption[] = (options?.options ?? []) as SettingsOption[];
+    const allOptions: OptionsItem[] = options?.options ?? [];
+
+    const cfwState = useCfwGlobalSettings(!loading);
 
     const savePanel = (
         <div
@@ -88,54 +89,16 @@ export const Settings: React.FC = () => {
                     }}
                 >
                     <Form labelCol={{ span: 8 }} wrapperCol={{ span: 14 }} layout="horizontal">
-                        {settingsOptions.map((option, index, array) => {
-                            const optionId = option.iD;
-
-                            if (optionId.includes("core.settings_level")) {
-                                return null;
-                            }
-
-                            const parts = optionId.split(".");
-                            const previousOptionId = array[index - 1] ? array[index - 1].iD : "";
-                            const lastParts = previousOptionId ? previousOptionId.split(".") : [];
-
-                            return (
-                                <React.Fragment key={optionId}>
-                                    {parts.slice(0, -1).map((part, partIndex) => {
-                                        if (lastParts[partIndex] !== part) {
-                                            if (partIndex === 0) {
-                                                return (
-                                                    <h3
-                                                        style={{
-                                                            marginLeft: `${partIndex * 20}px`,
-                                                            marginBottom: "10px",
-                                                        }}
-                                                        key={`category-${optionId}-${partIndex}`}
-                                                    >
-                                                        Category {part}
-                                                    </h3>
-                                                );
-                                            } else {
-                                                return (
-                                                    <h4
-                                                        style={{
-                                                            marginLeft: `${partIndex * 10}px`,
-                                                            marginTop: "10px",
-                                                            marginBottom: "10px",
-                                                        }}
-                                                        key={`category-${optionId}-${partIndex}`}
-                                                    >
-                                                        .{part}
-                                                    </h4>
-                                                );
-                                            }
-                                        }
-                                        return null;
-                                    })}
-                                    <SettingsOptionItem noOverlay={true} iD={optionId} />
-                                </React.Fragment>
-                            );
-                        })}
+                        <SettingsList
+                            noOverlay={true}
+                            titles={settingGroupTitles(allOptions)}
+                            options={allOptions.filter(
+                                (option) =>
+                                    option.type !== "desc" &&
+                                    !option.iD.includes("core.settings_level") &&
+                                    !hiddenInGlobalSettings(option.iD, cfwState),
+                            )}
+                        />
                     </Form>
                 </Formik>
             )}

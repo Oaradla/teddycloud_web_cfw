@@ -162,7 +162,7 @@ export class TeddyCloudApi extends runtime.BaseAPI {
         initOverrides?: RequestInit | runtime.InitOverrideFunction,
     ): Promise<runtime.ApiResponse<OptionsList>> {
         const response = await this.apiGetTeddyCloudApiRaw(
-            `/api/settings/getIndex`,
+            `/api/settings/getIndex?groups=true`,
             overlay,
             initOverrides,
         );
@@ -545,10 +545,11 @@ export class TeddyCloudApi extends runtime.BaseAPI {
     ): Promise<Response> {
         const queryParameters: any = {};
         const headerParameters: runtime.HTTPHeaders = {};
+        const overlaySeparator = apiPath.includes("?") ? "&" : "?";
 
         const response = await this.request(
             {
-                path: `${apiPath}${overlay ? "?overlay=" + overlay : ""}`,
+                path: `${apiPath}${overlay ? `${overlaySeparator}overlay=${overlay}` : ""}`,
                 method: "GET",
                 headers: headerParameters,
                 query: queryParameters,

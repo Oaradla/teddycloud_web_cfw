@@ -9,6 +9,8 @@ import LoadingSpinner from "../../common/elements/LoadingSpinner";
 import { useTeddyCloud } from "../../../provider/TeddyCloudProvider";
 import { NotificationTypeEnum } from "../../../types/teddyCloudNotificationTypes";
 import { useGetSettingCheckCC3200CFW } from "./hooks/useGetSettingCheckCC3200CFW";
+import { findCfwBox, useCfwBoxes } from "../../cfw/useCfwBoxes";
+import { useCfwEnabled } from "../../cfw/useCfwEnabled";
 
 export const TonieboxesList: React.FC<{
     tonieboxCards: TonieboxCardProps[];
@@ -31,6 +33,13 @@ export const TonieboxesList: React.FC<{
                 : 1;
 
     const checkCC3200CFW = useGetSettingCheckCC3200CFW();
+
+    // the battery report comes about every two minutes while a box is on
+    const { boxes: cfwBoxes } = useCfwBoxes({
+        active: useCfwEnabled(),
+        pollMs: 60000,
+        refreshKey: tonieboxCards.map((box) => box.ID).join(","),
+    });
 
     useEffect(() => {
         if (!boxModelImagesLoading && boxModelImages.length === 0) {
@@ -81,6 +90,7 @@ export const TonieboxesList: React.FC<{
                             tonieboxImages={boxModelImages}
                             readOnly={readOnly}
                             checkCC3200CFW={checkCC3200CFW}
+                            cfwBox={findCfwBox(cfwBoxes, toniebox.ID)}
                         />
                     </div>
                 ))

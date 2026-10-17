@@ -38,6 +38,7 @@ import { WebAuthPage } from "./pages/settings/WebAuthPage";
 import { LoginPage } from "./pages/LoginPage";
 
 import { TonieboxesPage } from "./pages/tonieboxes/TonieboxesPage";
+import { BoxUpdatePage } from "./pages/tonieboxes/BoxUpdatePage";
 import { BoxSetupPage } from "./pages/tonieboxes/boxsetup/BoxSetupPage";
 import { BoxVersionInformationPage } from "./pages/tonieboxes/boxsetup/BoxVersionInformationPage";
 import { IdentifyBoxVersionPage } from "./pages/tonieboxes/boxsetup/IdentifyBoxVersionPage";
@@ -278,6 +279,7 @@ function AuthenticatedApp({
                                 <Route path="/tonies/plugin/:pluginId" element={<PluginPage />} />
 
                                 <Route path="/tonieboxes" element={<TonieboxesPage />} />
+                                <Route path="/tonieboxes/boxupdate" element={<BoxUpdatePage />} />
                                 <Route path="/tonieboxes/boxsetup" element={<BoxSetupPage />} />
                                 <Route
                                     path="/tonieboxes/boxsetup/identifyboxversion"

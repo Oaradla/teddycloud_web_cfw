@@ -101,3 +101,23 @@ describe("TeddyCloudApi.apiPostTeddyCloudFormDataRaw", () => {
         expect(result.ok).toBe(false);
     });
 });
+
+describe("TeddyCloudApi.apiGetTeddyCloudApiRaw", () => {
+    it("appends overlay with ? when the path has no query string", async () => {
+        const fetchApi = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+        const api = new TeddyCloudApi(new Configuration({ basePath: "", fetchApi }));
+
+        await api.apiGetTeddyCloudApiRaw("/api/settings/getIndex", "box-1");
+
+        expect(fetchApi.mock.calls[0][0]).toBe("/api/settings/getIndex?overlay=box-1");
+    });
+
+    it("appends overlay with & when the path already has query parameters", async () => {
+        const fetchApi = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+        const api = new TeddyCloudApi(new Configuration({ basePath: "", fetchApi }));
+
+        await api.apiGetTeddyCloudApiRaw("/api/settings/getIndex?groups=true", "box-1");
+
+        expect(fetchApi.mock.calls[0][0]).toBe("/api/settings/getIndex?groups=true&overlay=box-1");
+    });
+});
