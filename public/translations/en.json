@@ -65,7 +65,7 @@
             "resume": "Resume",
             "resumeHint": "The figure continues where it stopped last, even when other figures played in between.",
             "shuffle": "Shuffle",
-            "shuffleHint": "The chapters play in random order, each exactly once.",
+            "shuffleHint": "The chapters play in random order, each exactly once. A slap on the upside-down box starts a new order.",
             "sleepTimer": "Sleep timer",
             "sleepTimerHint": "After a third of the time the volume fades slowly; at the end the box switches off.",
             "sleepAfter": "Switch off after",
@@ -337,6 +337,30 @@
             "noImage": "No image received",
             "tagMissing": "Release tag missing",
             "cfwOff": "CFW support is off (cfw.enabled)"
+        },
+        "controls": {
+            "title": "Using a box with the custom firmware",
+            "intro": "Only the custom firmware has these gestures and functions; the original firmware does not know them.",
+            "restart": {
+                "title": "Slap upside down: start over",
+                "text": "Turn the box upside down (ears facing down) and slap it on the side: playback jumps back to the beginning of the figure, with the \"chapter back\" sound. With shuffle, a new random order starts. In the original firmware, a slap on the upside-down box only moves one chapter. Handy for audio books and figures with many chapters. The slap lock stops this gesture too."
+            },
+            "bothEars": {
+                "title": "Both ears briefly: switch off",
+                "text": "Press both ears together and let go within 2 s: the LED blinks lilac once, the box keeps the position and switches off at once, even with a figure on it. Holding longer works as before (5 s: setup mode, 10 s upside down: restart). Can be switched off in the box settings."
+            },
+            "anyTag": {
+                "title": "Any NFC tag as a figure",
+                "text": "Besides real Tonies, any ISO 15693 NFC tag works (e.g. stickers or cards). The box reads only its ID and never writes to it. Assign its content in teddyCloud like for any Tonie."
+            },
+            "event": {
+                "title": "Event tags",
+                "text": "An event tag plays nothing; it changes the next figure (placed within 60 s) or the box. Set it up in the Tonie's edit dialog. Confirmation: five turquoise blinks = switched on, five lilac blinks = switched off. While an event tag \"with the ears\" is on the box, the ears set the volume limit or the LED; holding one ear for 3 s switches between the two."
+            },
+            "locks": {
+                "title": "Locks",
+                "text": "Per box or per figure: slap lock (changing chapters, the upside-down slap included), tilt lock (winding) and volume lock (short ear press). A locked gesture does nothing at all: no sound, no blink."
+            }
         }
     },
     "common": {
@@ -1981,7 +2005,7 @@
             },
             "cfw_box_slap_lock": {
                 "label": "Slap lock",
-                "description": "Slaps do nothing. Boxes without the custom firmware get 'Slap to skip' off"
+                "description": "Slaps do nothing, the upside-down slap (start over) included. Boxes without the custom firmware get 'Slap to skip' off"
             },
             "cfw_box_tilt_lock": {
                 "label": "Tilt lock",

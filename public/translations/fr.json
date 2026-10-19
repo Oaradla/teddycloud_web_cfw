@@ -65,7 +65,7 @@
             "resume": "Reprise",
             "resumeHint": "La figurine reprend là où elle s'est arrêtée, même si d'autres figurines ont été jouées entre-temps.",
             "shuffle": "Lecture aléatoire",
-            "shuffleHint": "Les chapitres sont joués dans un ordre aléatoire, chacun exactement une fois.",
+            "shuffleHint": "Les chapitres sont joués dans un ordre aléatoire, chacun exactement une fois. Une tape sur la box retournée lance un nouvel ordre.",
             "sleepTimer": "Minuterie de sommeil",
             "sleepTimerHint": "Après un tiers du temps, le volume baisse lentement ; à la fin, la box s'éteint.",
             "sleepAfter": "Éteindre après",
@@ -337,6 +337,30 @@
             "noImage": "Aucune image reçue",
             "tagMissing": "Tag de version manquant",
             "cfwOff": "Le support CFW est désactivé (cfw.enabled)"
+        },
+        "controls": {
+            "title": "Utilisation avec la firmware personnalisée",
+            "intro": "Seule la firmware personnalisée possède ces gestes et fonctions ; la firmware d'origine ne les connaît pas.",
+            "restart": {
+                "title": "Taper à l'envers : depuis le début",
+                "text": "Retourne la box (oreilles vers le bas) et tape sur un côté : la lecture revient au début de la figurine, avec le son « chapitre précédent ». En lecture aléatoire, un nouvel ordre commence. Avec la firmware d'origine, une tape sur la box retournée ne change que d'un chapitre. Pratique pour les livres audio et les figurines à nombreux chapitres. Le verrouillage de la tape bloque aussi ce geste."
+            },
+            "bothEars": {
+                "title": "Les deux oreilles brièvement : éteindre",
+                "text": "Appuie sur les deux oreilles en même temps et relâche en moins de 2 s : la LED clignote une fois en lilas, la box mémorise la position et s'éteint aussitôt, même avec une figurine dessus. Un appui plus long agit comme avant (5 s : mode configuration, 10 s à l'envers : redémarrage). Désactivable dans les réglages de la box."
+            },
+            "anyTag": {
+                "title": "N'importe quelle étiquette NFC comme figurine",
+                "text": "En plus des vrais Tonies, toute étiquette NFC ISO 15693 fonctionne (p. ex. autocollants ou cartes). La box lit seulement son ID et n'écrit jamais dessus. Attribue son contenu dans teddyCloud comme pour tout Tonie."
+            },
+            "event": {
+                "title": "Étiquettes d'événement",
+                "text": "Une étiquette d'événement ne joue rien ; elle modifie la figurine suivante (posée dans les 60 s) ou la box. Elle se configure dans la fenêtre de modification du Tonie. Confirmation : cinq clignotements turquoise = activé, cinq lilas = désactivé. Tant qu'une étiquette d'événement « avec les oreilles » est sur la box, les oreilles règlent la limite de volume ou la LED ; maintenir une oreille 3 s bascule entre les deux."
+            },
+            "locks": {
+                "title": "Verrouillages",
+                "text": "Par box ou par figurine : verrouillage de la tape (changer de chapitre, tape à l'envers comprise), verrouillage de l'inclinaison (avance/retour rapide) et verrouillage du volume (appui court sur une oreille). Un geste verrouillé ne fait rien : ni son ni clignotement."
+            }
         }
     },
     "common": {
@@ -1943,7 +1967,7 @@
             },
             "cfw_box_slap_lock": {
                 "label": "Verrouillage de la tape",
-                "description": "Les tapes n'ont aucun effet. Les box sans la firmware personnalisée reçoivent 'Taper pour sauter' désactivé"
+                "description": "Les tapes n'ont aucun effet, y compris la tape à l'envers (depuis le début). Les box sans la firmware personnalisée reçoivent 'Taper pour sauter' désactivé"
             },
             "cfw_box_tilt_lock": {
                 "label": "Verrouillage de l'inclinaison",

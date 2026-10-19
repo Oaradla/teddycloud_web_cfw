@@ -65,7 +65,7 @@
             "resume": "Continuar",
             "resumeHint": "La figura continúa donde se detuvo por última vez, aunque entre medias se hayan reproducido otras figuras.",
             "shuffle": "Aleatorio",
-            "shuffleHint": "Los capítulos se reproducen en orden aleatorio, cada uno exactamente una vez.",
+            "shuffleHint": "Los capítulos se reproducen en orden aleatorio, cada uno exactamente una vez. Un golpe con la caja boca abajo empieza un orden nuevo.",
             "sleepTimer": "Temporizador de apagado",
             "sleepTimerHint": "Tras un tercio del tiempo el volumen baja lentamente; al final la caja se apaga.",
             "sleepAfter": "Apagar tras",
@@ -337,6 +337,30 @@
             "noImage": "No se recibió ninguna imagen",
             "tagMissing": "Falta la etiqueta de la versión",
             "cfwOff": "El soporte CFW está desactivado (cfw.enabled)"
+        },
+        "controls": {
+            "title": "Manejo con el firmware personalizado",
+            "intro": "Estos gestos y funciones solo los tiene el firmware personalizado; el firmware original no los conoce.",
+            "restart": {
+                "title": "Golpear boca abajo: desde el principio",
+                "text": "Pon la caja boca abajo (orejas hacia abajo) y dale un golpecito en un lado: la reproducción vuelve al principio de la figura, con el sonido de \"capítulo anterior\". Con reproducción aleatoria empieza un orden nuevo. En el firmware original, un golpe con la caja boca abajo solo cambia un capítulo. Útil para audiolibros y figuras con muchos capítulos. El bloqueo de golpes bloquea también este gesto."
+            },
+            "bothEars": {
+                "title": "Ambas orejas brevemente: apagar",
+                "text": "Pulsa ambas orejas a la vez y suéltalas en menos de 2 s: el LED parpadea una vez en lila, la caja guarda la posición y se apaga al instante, también con una figura encima. Mantenerlas más tiempo funciona como siempre (5 s: modo de configuración, 10 s boca abajo: reinicio). Se puede desactivar en los ajustes de la caja."
+            },
+            "anyTag": {
+                "title": "Cualquier etiqueta NFC como figura",
+                "text": "Además de los Tonies, funciona cualquier etiqueta NFC ISO 15693 (p. ej. pegatinas o tarjetas). La caja solo lee su ID y nunca escribe en ella. Asigna su contenido en teddyCloud como para cualquier Tonie."
+            },
+            "event": {
+                "title": "Etiquetas de evento",
+                "text": "Una etiqueta de evento no reproduce nada; cambia la siguiente figura (colocada en menos de 60 s) o la caja. Se configura en el diálogo de edición del Tonie. Confirmación: cinco parpadeos turquesa = activado, cinco lila = desactivado. Mientras una etiqueta de evento \"con las orejas\" está en la caja, las orejas ajustan el límite de volumen o el LED; mantener una oreja 3 s cambia entre ambos."
+            },
+            "locks": {
+                "title": "Bloqueos",
+                "text": "Por caja o por figura: bloqueo de golpes (cambiar de capítulo, también el golpe boca abajo), bloqueo de inclinación (avanzar/retroceder) y bloqueo de volumen (pulsación corta de oreja). Un gesto bloqueado no hace nada: ni sonido ni parpadeo."
+            }
         }
     },
     "common": {
@@ -1943,7 +1967,7 @@
             },
             "cfw_box_slap_lock": {
                 "label": "Bloqueo de golpes",
-                "description": "Los golpes no hacen nada. Las cajas sin el firmware personalizado reciben 'Golpear para saltar' desactivado"
+                "description": "Los golpes no hacen nada, tampoco el golpe boca abajo (desde el principio). Las cajas sin el firmware personalizado reciben 'Golpear para saltar' desactivado"
             },
             "cfw_box_tilt_lock": {
                 "label": "Bloqueo de inclinación",

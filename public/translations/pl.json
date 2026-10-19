@@ -65,7 +65,7 @@
             "resume": "Wznawianie",
             "resumeHint": "Figurka kontynuuje od miejsca, w którym ostatnio przerwała, nawet jeśli w międzyczasie grały inne figurki.",
             "shuffle": "Losowa kolejność",
-            "shuffleHint": "Rozdziały są odtwarzane w losowej kolejności, każdy dokładnie raz.",
+            "shuffleHint": "Rozdziały są odtwarzane w losowej kolejności, każdy dokładnie raz. Uderzenie odwróconego boxa zaczyna nową kolejność.",
             "sleepTimer": "Wyłącznik czasowy",
             "sleepTimerHint": "Po jednej trzeciej czasu głośność powoli maleje; na końcu box się wyłącza.",
             "sleepAfter": "Wyłącz po",
@@ -337,6 +337,30 @@
             "noImage": "Nie otrzymano obrazu",
             "tagMissing": "Brak tagu wydania",
             "cfwOff": "Obsługa CFW jest wyłączona (cfw.enabled)"
+        },
+        "controls": {
+            "title": "Obsługa z Custom Firmware",
+            "intro": "Te gesty i funkcje ma tylko Custom Firmware; oryginalny firmware ich nie zna.",
+            "restart": {
+                "title": "Uderzenie do góry nogami: od początku",
+                "text": "Odwróć box do góry nogami (uszami w dół) i uderz w niego z boku: odtwarzanie wraca na początek figurki, z dźwiękiem „poprzedni rozdział”. Przy odtwarzaniu losowym zaczyna się nowa kolejność. W oryginalnym firmware uderzenie odwróconego boxa zmienia tylko jeden rozdział. Przydatne przy audiobookach i figurkach z wieloma rozdziałami. Blokada uderzeń blokuje także ten gest."
+            },
+            "bothEars": {
+                "title": "Oba uszy krótko: wyłączenie",
+                "text": "Naciśnij oba uszy jednocześnie i puść w ciągu 2 s: dioda mignie raz na liliowo, box zapamięta pozycję i od razu się wyłączy, także z figurką. Dłuższe przytrzymanie działa jak dotąd (5 s: tryb konfiguracji, 10 s do góry nogami: restart). Można wyłączyć w ustawieniach boxa."
+            },
+            "anyTag": {
+                "title": "Dowolny tag NFC jako figurka",
+                "text": "Oprócz prawdziwych Tonies działa każdy tag NFC ISO 15693 (np. naklejki lub karty). Box odczytuje tylko jego ID i nigdy nic na nim nie zapisuje. Zawartość przypisujesz w teddyCloud jak dla każdego Tonie."
+            },
+            "event": {
+                "title": "Tagi zdarzeń",
+                "text": "Tag zdarzenia niczego nie odtwarza; zmienia następną figurkę (położoną w ciągu 60 s) albo box. Konfiguruje się go w oknie edycji Tonie. Potwierdzenie: pięć turkusowych mignięć = włączone, pięć liliowych = wyłączone. Gdy na boxie stoi tag zdarzenia „uszami”, uszy ustawiają limit głośności lub diodę; przytrzymanie jednego ucha przez 3 s przełącza między nimi."
+            },
+            "locks": {
+                "title": "Blokady",
+                "text": "Dla boxa lub figurki: blokada uderzeń (zmiana rozdziału, także uderzenie do góry nogami), blokada przechylania (przewijanie) i blokada głośności (krótkie naciśnięcie ucha). Zablokowany gest nic nie robi: bez dźwięku i bez mignięcia."
+            }
         }
     },
     "common": {
@@ -1943,7 +1967,7 @@
             },
             "cfw_box_slap_lock": {
                 "label": "Blokada uderzeń",
-                "description": "Uderzenia nic nie robią. Boxy bez Custom Firmware mają wyłączone 'Przełączanie uderzeniem'"
+                "description": "Uderzenia nic nie robią, także uderzenie do góry nogami (od początku). Boxy bez Custom Firmware mają wyłączone 'Przełączanie uderzeniem'"
             },
             "cfw_box_tilt_lock": {
                 "label": "Blokada przechylania",

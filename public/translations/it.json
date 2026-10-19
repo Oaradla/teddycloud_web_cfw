@@ -65,7 +65,7 @@
             "resume": "Riprendi",
             "resumeHint": "La figura riprende da dove si era fermata l'ultima volta, anche se nel frattempo sono state riprodotte altre figure.",
             "shuffle": "Riproduzione casuale",
-            "shuffleHint": "I capitoli vengono riprodotti in ordine casuale, ciascuno esattamente una volta.",
+            "shuffleHint": "I capitoli vengono riprodotti in ordine casuale, ciascuno esattamente una volta. Un colpetto al box capovolto avvia un nuovo ordine.",
             "sleepTimer": "Timer di spegnimento",
             "sleepTimerHint": "Dopo un terzo del tempo il volume si abbassa lentamente; alla fine il box si spegne.",
             "sleepAfter": "Spegni dopo",
@@ -337,6 +337,30 @@
             "noImage": "Nessuna immagine ricevuta",
             "tagMissing": "Tag della release mancante",
             "cfwOff": "Il supporto CFW è disattivato (cfw.enabled)"
+        },
+        "controls": {
+            "title": "Uso con il firmware personalizzato",
+            "intro": "Solo il firmware personalizzato ha questi gesti e queste funzioni; il firmware originale non li conosce.",
+            "restart": {
+                "title": "Colpetto a testa in giù: dall'inizio",
+                "text": "Capovolgi il box (orecchie verso il basso) e dagli un colpetto su un lato: la riproduzione torna all'inizio della figura, con il suono di \"capitolo precedente\". Con la riproduzione casuale inizia un nuovo ordine. Nel firmware originale, un colpetto al box capovolto cambia solo di un capitolo. Utile per audiolibri e figure con molti capitoli. Il blocco colpetti blocca anche questo gesto."
+            },
+            "bothEars": {
+                "title": "Entrambe le orecchie brevemente: spegnere",
+                "text": "Premi entrambe le orecchie insieme e rilasciale entro 2 s: il LED lampeggia una volta lilla, il box memorizza la posizione e si spegne subito, anche con una figura sopra. Tenerle premute più a lungo funziona come prima (5 s: modalità di configurazione, 10 s capovolto: riavvio). Disattivabile nelle impostazioni del box."
+            },
+            "anyTag": {
+                "title": "Qualsiasi tag NFC come figura",
+                "text": "Oltre ai veri Tonies funziona qualsiasi tag NFC ISO 15693 (ad es. adesivi o schede). Il box legge solo il suo ID e non ci scrive mai. Assegna il contenuto in teddyCloud come per qualsiasi Tonie."
+            },
+            "event": {
+                "title": "Tag evento",
+                "text": "Un tag evento non riproduce nulla; modifica la figura successiva (appoggiata entro 60 s) o il box. Si configura nella finestra di modifica del Tonie. Conferma: cinque lampeggi turchese = attivato, cinque lilla = disattivato. Mentre un tag evento \"con le orecchie\" è sul box, le orecchie regolano il limite di volume o il LED; tenere premuto un orecchio per 3 s passa dall'uno all'altro."
+            },
+            "locks": {
+                "title": "Blocchi",
+                "text": "Per box o per figura: blocco colpetti (cambio capitolo, compreso il colpetto a testa in giù), blocco inclinazione (avanti/indietro veloce) e blocco volume (pressione breve di un orecchio). Un gesto bloccato non fa nulla: nessun suono, nessun lampeggio."
+            }
         }
     },
     "common": {
@@ -1943,7 +1967,7 @@
             },
             "cfw_box_slap_lock": {
                 "label": "Blocco colpetti",
-                "description": "I colpetti non hanno effetto. I box senza il firmware personalizzato ricevono 'Colpetto per saltare' disattivato"
+                "description": "I colpetti non hanno effetto, compreso il colpetto a testa in giù (dall'inizio). I box senza il firmware personalizzato ricevono 'Colpetto per saltare' disattivato"
             },
             "cfw_box_tilt_lock": {
                 "label": "Blocco inclinazione",

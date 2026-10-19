@@ -65,7 +65,7 @@
             "resume": "Fortsetzen",
             "resumeHint": "Die Figur spielt dort weiter, wo sie zuletzt aufgehört hat, auch wenn dazwischen andere Figuren liefen.",
             "shuffle": "Zufallswiedergabe",
-            "shuffleHint": "Die Kapitel laufen in zufälliger Reihenfolge, jedes genau einmal.",
+            "shuffleHint": "Die Kapitel laufen in zufälliger Reihenfolge, jedes genau einmal. Kopfüber klopfen startet eine neue Reihenfolge.",
             "sleepTimer": "Sleep-Timer",
             "sleepTimerHint": "Nach einem Drittel der Zeit wird die Lautstärke langsam leiser, am Ende schaltet sich die Box aus.",
             "sleepAfter": "Ausschalten nach",
@@ -337,6 +337,30 @@
             "noImage": "Kein Image empfangen",
             "tagMissing": "Release-Tag fehlt",
             "cfwOff": "CFW-Unterstützung ist ausgeschaltet (cfw.enabled)"
+        },
+        "controls": {
+            "title": "Bedienung mit der Custom Firmware",
+            "intro": "Diese Gesten und Funktionen hat nur die Custom Firmware, die Original-Firmware kennt sie nicht.",
+            "restart": {
+                "title": "Kopfüber klopfen: von vorn",
+                "text": "Box auf den Kopf drehen (Ohren nach unten) und seitlich auf die Box klopfen: Die Wiedergabe springt an den Anfang der Figur, mit dem Ton für „Kapitel zurück“. Mit Zufallswiedergabe beginnt eine neue Reihenfolge. In der Original-Firmware springt die Box auch kopfüber nur ein Kapitel. Praktisch für Hörbücher und Figuren mit vielen Kapiteln. Die Klaps-Sperre sperrt auch diese Geste."
+            },
+            "bothEars": {
+                "title": "Beide Ohren kurz: ausschalten",
+                "text": "Beide Ohren zusammen drücken und innerhalb von 2 s loslassen: Die LED blinkt einmal lila, die Box merkt sich die Position und schaltet sich sofort aus, auch mit Figur. Länger halten wirkt wie bisher (5 s: Einrichtungsmodus, 10 s kopfüber: Neustart). Abschaltbar in den Box-Einstellungen."
+            },
+            "anyTag": {
+                "title": "Jeder NFC-Tag als Figur",
+                "text": "Neben echten Tonies funktioniert jeder NFC-Tag nach ISO 15693 (z. B. Sticker oder Karten). Die Box liest nur seine ID und beschreibt ihn nie. Den Inhalt weist du in teddyCloud zu wie bei jedem Tonie."
+            },
+            "event": {
+                "title": "Event-Tags",
+                "text": "Ein Event-Tag spielt nichts ab, sondern ändert die nächste Figur (innerhalb von 60 s aufgelegt) oder die Box; eingerichtet im Bearbeiten-Dialog des Tonies. Bestätigung: fünfmal türkis = eingeschaltet, fünfmal lila = ausgeschaltet. Steht ein Event-Tag „mit den Ohren“ auf der Box, stellen die Ohren das Lautstärke-Limit oder die LED ein; ein Ohr 3 s halten wechselt zwischen beiden."
+            },
+            "locks": {
+                "title": "Sperren",
+                "text": "Pro Box oder pro Figur: Klaps-Sperre (Kapitel wechseln, auch kopfüber klopfen), Kipp-Sperre (spulen) und Lautstärke-Sperre (kurzer Ohrdruck). Eine gesperrte Geste bewirkt gar nichts, kein Ton und kein Blinken."
+            }
         }
     },
     "common": {
@@ -2019,7 +2043,7 @@
             },
             "cfw_box_slap_lock": {
                 "label": "Klaps-Sperre",
-                "description": "Klapse bewirken nichts. Boxen ohne Custom Firmware bekommen 'Klapsen zum Springen' aus"
+                "description": "Klapse bewirken nichts, auch das Klopfen kopfüber (von vorn) nicht. Boxen ohne Custom Firmware bekommen 'Klapsen zum Springen' aus"
             },
             "cfw_box_tilt_lock": {
                 "label": "Kipp-Sperre",

@@ -8,6 +8,8 @@ import BreadcrumbWrapper, {
     StyledSider,
 } from "../../components/common/StyledComponents";
 
+import { CfwControls } from "../../components/cfw/CfwControls";
+import { useCfwEnabled } from "../../components/cfw/useCfwEnabled";
 import { TonieboxesSubNav } from "../../components/tonieboxes/TonieboxesSubNav";
 import { TonieboxesList } from "../../components/tonieboxes/tonieboxeslist/TonieboxesList";
 
@@ -19,6 +21,7 @@ export const TonieboxesPage = () => {
 
     const newBoxesAllowed = useNewBoxesAllowed();
     const { tonieboxes } = useTonieboxes();
+    const cfwEnabled = useCfwEnabled();
 
     return (
         <>
@@ -48,6 +51,8 @@ export const TonieboxesPage = () => {
                     )}
 
                     <TonieboxesList tonieboxCards={tonieboxes} />
+
+                    {cfwEnabled && <CfwControls />}
                 </StyledContent>
             </StyledLayout>
         </>
