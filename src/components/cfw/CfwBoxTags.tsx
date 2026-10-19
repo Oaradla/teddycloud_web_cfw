@@ -36,6 +36,10 @@ export const CfwBoxTags: React.FC<{ box?: CfwBox }> = ({ box }) => {
                         style={{ marginInlineEnd: 4 }}
                     >
                         {box.battery.station ? <ThunderboltOutlined /> : null}{" "}
+                        {/* on the charger the box measures the charger, not the battery */}
+                        {!box.battery.station && box.battery.percent !== undefined
+                            ? `${box.battery.percent} % · `
+                            : ""}
                         {(box.battery.mv / 1000).toFixed(2)} V
                     </Tag>
                 </Tooltip>

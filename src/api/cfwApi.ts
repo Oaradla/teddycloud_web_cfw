@@ -33,6 +33,11 @@ export interface CfwBattery {
     /** 0 at the hello, 1 a scheduled measurement, 2 lifted off the station */
     reason: number;
     time: number;
+    /** charge from the voltage, 0-100; missing on the charger */
+    percent?: number;
+    /** playing time left at the volume of the report, once the box's capacity is learned */
+    remainingMin?: number;
+    learned?: boolean;
 }
 
 export type CfwChannel = "none" | "release" | "beta" | "alpha";
