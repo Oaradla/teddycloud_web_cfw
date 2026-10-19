@@ -2,21 +2,23 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { Alert, Collapse, Typography } from "antd";
 
-const { Paragraph } = Typography;
+const { Paragraph, Text } = Typography;
 
 /** the further functions, below the upside-down slap that no other documentation mentions */
 const SECTIONS = ["bothEars", "anyTag", "event", "locks"];
 
-/** how a box with the custom firmware is used beyond the original: closed at the bottom of the page */
+/** how a box with the custom firmware is used beyond the original: a quiet closed line at the bottom of the page */
 export const CfwControls: React.FC = () => {
     const { t } = useTranslation();
     return (
         <Collapse
+            ghost
+            size="small"
             style={{ marginTop: 16 }}
             items={[
                 {
                     key: "controls",
-                    label: t("cfw.controls.title"),
+                    label: <Text type="secondary">{t("cfw.controls.title")}</Text>,
                     children: (
                         <>
                             <Paragraph type="secondary">{t("cfw.controls.intro")}</Paragraph>
