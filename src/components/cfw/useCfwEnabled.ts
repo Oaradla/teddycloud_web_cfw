@@ -21,8 +21,9 @@ export const readSettingSwitch = async (name: string, overlay?: string): Promise
 /**
  * whether teddyCloud's custom firmware support is on (cfw.enabled, of the box when overlay is given);
  * undefined while it is read. Everything of the CFW stays hidden unless this is true.
+ * A changed reloadKey reads it again.
  */
-export const useCfwEnabled = (overlay?: string): boolean | undefined => {
+export const useCfwEnabled = (overlay?: string, reloadKey = 0): boolean | undefined => {
     const [enabled, setEnabled] = useState<boolean | undefined>();
 
     useEffect(() => {
@@ -32,7 +33,7 @@ export const useCfwEnabled = (overlay?: string): boolean | undefined => {
         return () => {
             current = false;
         };
-    }, [overlay]);
+    }, [overlay, reloadKey]);
 
     return enabled;
 };
