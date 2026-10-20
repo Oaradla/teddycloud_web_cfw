@@ -605,3 +605,19 @@ The country flags are derived from here:
 - [https://gitlab.com/catamphetamine/country-flag-icons](https://gitlab.com/catamphetamine/country-flag-icons) v1.5.18.
 
 Thanks to Nikolay Kuchumov for creating this flag collection!
+
+## Legal
+
+Toniebox, Tonie and tonies are trademarks of tonies GmbH (formerly Boxine
+GmbH). This project is not affiliated with, endorsed or supported by tonies
+GmbH; the names only say which devices the software works with.
+
+Changing the firmware of a box, opening it or connecting to its debug port
+is at your own risk: a box can become unusable, and it can affect claims
+against the manufacturer. The software comes without any warranty (see the
+licence). Using the manufacturer's cloud is subject to its terms of use.
+
+The upstream project, teddycloud_web of toniebox-reverse-engineering,
+publishes no licence file; its code keeps the copyright of its authors. This
+repository adds the support for the custom firmware on top of it.
+
