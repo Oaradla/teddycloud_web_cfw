@@ -1,4 +1,5 @@
 import { Configuration } from "../api";
+import { isReauthRequired, requestReauth } from "../utils/auth/reauth";
 import { getBasePath as getRuntimeBasePath } from "../utils/basePath";
 
 /**
@@ -31,7 +32,15 @@ export const defaultAPIConfig = () =>
             } catch {
                 /* ignore */
             }
-            const response = await fetch(url, { ...init, headers, credentials: "same-origin" });
+            let response = await fetch(url, { ...init, headers, credentials: "same-origin" });
+            // a sensitive change needs the password again; streams can not be sent twice
+            const body = init?.body;
+            const resendable = !(
+                typeof ReadableStream !== "undefined" && body instanceof ReadableStream
+            );
+            if (resendable && (await isReauthRequired(response)) && (await requestReauth())) {
+                response = await fetch(url, { ...init, headers, credentials: "same-origin" });
+            }
             if (response.status === 401) {
                 const path = typeof url === "string" ? url : url.toString();
                 if (!path.includes("/api/auth/")) {

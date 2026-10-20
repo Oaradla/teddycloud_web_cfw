@@ -15,6 +15,7 @@ import {
     CheckCircleOutlined,
     SwapOutlined,
     ClockCircleOutlined,
+    ScissorOutlined,
 } from "@ant-design/icons";
 
 import { IMAGE_EXTENSIONS } from "../../../../constants/fileTypes";
@@ -71,6 +72,7 @@ export interface CreateColumnsOptions {
 
     migrateContent2Lib?: (ruid: string, libroot: boolean, overlay?: string) => void;
     handleEditTapClick?: (fullPath: string) => void;
+    handleSplitTafClick?: (record: Record) => void;
     handleEditTafMetaDataClick?: (path: string, record: Record) => void;
     showRenameDialog?: (fileName: string) => void;
     showMoveDialog?: (fileName: string) => void;
@@ -108,6 +110,7 @@ export const createColumns = (options: CreateColumnsOptions): any[] => {
         handleFileDownload,
         migrateContent2Lib,
         handleEditTapClick,
+        handleSplitTafClick,
         handleEditTafMetaDataClick,
         showRenameDialog,
         showMoveDialog,
@@ -544,7 +547,12 @@ export const createColumns = (options: CreateColumnsOptions): any[] => {
             }
 
             if (mode === "full") {
-                if (isTapList && record.name.includes(".tap") && handleEditTapClick) {
+                if (
+                    (isTapList || special === "library") &&
+                    !record.isDir &&
+                    record.name.toLowerCase().endsWith(".tap") &&
+                    handleEditTapClick
+                ) {
                     actions.push(
                         <Tooltip
                             open={!canHover ? false : undefined}
@@ -554,6 +562,26 @@ export const createColumns = (options: CreateColumnsOptions): any[] => {
                             <EditOutlined
                                 style={{ margin: "4px 8px 4px 0", padding: 4 }}
                                 onClick={() => handleEditTapClick(path + "/" + record.name)}
+                            />
+                        </Tooltip>,
+                    );
+                }
+
+                if (
+                    !record.isDir &&
+                    record.name.toLowerCase().endsWith(".taf") &&
+                    record.tafHeader?.valid !== false &&
+                    handleSplitTafClick
+                ) {
+                    actions.push(
+                        <Tooltip
+                            open={!canHover ? false : undefined}
+                            key={`action-split-taf-${record.name}`}
+                            title={t("fileBrowser.tafSplit.action")}
+                        >
+                            <ScissorOutlined
+                                style={{ margin: "4px 8px 4px 0", padding: 4 }}
+                                onClick={() => handleSplitTafClick(record)}
                             />
                         </Tooltip>,
                     );

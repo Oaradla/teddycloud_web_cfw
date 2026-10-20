@@ -437,17 +437,8 @@ const TeddyAudioPlaylistEditor: React.FC<TeddyAudioPlaylistEditorProps> = ({
                             <Input />
                         </Form.Item>
 
-                        <Form.Item
-                            name="audio_id"
-                            label={
-                                <div style={{ display: "flex", gap: 8 }}>
-                                    <label>{t("tonies.tapEditor.audioId")}</label>
-                                    <Tooltip title={t("tonies.tapEditor.audioIdTooltip")}>
-                                        <InfoCircleOutlined />
-                                    </Tooltip>
-                                </div>
-                            }
-                        >
+                        {/* the server gives the playlist TAF a new audio id whenever it is put together */}
+                        <Form.Item name="audio_id" hidden>
                             <Input type="number" />
                         </Form.Item>
 

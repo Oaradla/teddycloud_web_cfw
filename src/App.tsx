@@ -36,6 +36,8 @@ import { SettingsPage } from "./pages/settings/SettingsPage";
 import { CertificatesPage } from "./pages/settings/certificates/CertificatesPage";
 import { WebAuthPage } from "./pages/settings/WebAuthPage";
 import { LoginPage } from "./pages/LoginPage";
+import { AclProvider } from "./provider/AclProvider";
+import { AdminOnly } from "./components/common/AdminOnly";
 
 import { TonieboxesPage } from "./pages/tonieboxes/TonieboxesPage";
 import { BoxUpdatePage } from "./pages/tonieboxes/BoxUpdatePage";
@@ -171,7 +173,9 @@ function App() {
                 {effectiveThemeMode === "matrix" && <MatrixRain />}
                 <Router basename={withBase("/web")}>
                     <AuthProvider>
-                        <AuthenticatedApp themeSwitch={themeSwitchIcon} themeMode={themeMode} />
+                        <AclProvider>
+                            <AuthenticatedApp themeSwitch={themeSwitchIcon} themeMode={themeMode} />
+                        </AclProvider>
                     </AuthProvider>
                 </Router>
             </StyledThemeProvider>
@@ -187,7 +191,15 @@ function AuthenticatedApp({
     themeMode: string;
 }) {
     const { t } = useTranslation();
-    const { loading, error, statusAvailable, needsLogin, refresh } = useAuth();
+    const {
+        loading,
+        error,
+        statusAvailable,
+        needsLogin,
+        needsTwoFactorSetup,
+        needsPasswordChange,
+        refresh,
+    } = useAuth();
 
     if (loading) {
         return (
@@ -230,7 +242,7 @@ function AuthenticatedApp({
         );
     }
 
-    if (needsLogin) {
+    if (needsLogin || needsTwoFactorSetup || needsPasswordChange) {
         return <LoginPage themeSwitch={themeSwitch} />;
     }
 
@@ -259,9 +271,20 @@ function AuthenticatedApp({
                                 />
                                 <Route
                                     path="/tonies/system-sounds"
-                                    element={<SystemSoundsPage />}
+                                    element={
+                                        <AdminOnly fallback="/tonies">
+                                            <SystemSoundsPage />
+                                        </AdminOnly>
+                                    }
                                 />
-                                <Route path="/tonies/content" element={<ContentPage />} />
+                                <Route
+                                    path="/tonies/content"
+                                    element={
+                                        <AdminOnly fallback="/tonies">
+                                            <ContentPage />
+                                        </AdminOnly>
+                                    }
+                                />
                                 <Route path="/tonies/library" element={<LibraryPage />} />
                                 <Route
                                     path="/tonies/customimages"
@@ -274,58 +297,126 @@ function AuthenticatedApp({
                                 <Route path="/tonies/teddystudio" element={<TeddyStudioPage />} />
                                 <Route
                                     path="/tonies/customeditor"
-                                    element={<CustomTonieCreatorPage />}
+                                    element={
+                                        <AdminOnly fallback="/tonies">
+                                            <CustomTonieCreatorPage />
+                                        </AdminOnly>
+                                    }
                                 />
                                 <Route path="/tonies/plugin/:pluginId" element={<PluginPage />} />
 
                                 <Route path="/tonieboxes" element={<TonieboxesPage />} />
-                                <Route path="/tonieboxes/boxupdate" element={<BoxUpdatePage />} />
-                                <Route path="/tonieboxes/boxsetup" element={<BoxSetupPage />} />
+                                <Route
+                                    path="/tonieboxes/boxupdate"
+                                    element={
+                                        <AdminOnly fallback="/tonieboxes">
+                                            <BoxUpdatePage />
+                                        </AdminOnly>
+                                    }
+                                />
+                                <Route
+                                    path="/tonieboxes/boxsetup"
+                                    element={
+                                        <AdminOnly fallback="/tonieboxes">
+                                            <BoxSetupPage />
+                                        </AdminOnly>
+                                    }
+                                />
                                 <Route
                                     path="/tonieboxes/boxsetup/identifyboxversion"
-                                    element={<IdentifyBoxVersionPage />}
+                                    element={
+                                        <AdminOnly fallback="/tonieboxes">
+                                            <IdentifyBoxVersionPage />
+                                        </AdminOnly>
+                                    }
                                 />
                                 <Route
                                     path="/tonieboxes/boxsetup/openboxguide"
-                                    element={<OpenBoxGuidePage />}
+                                    element={
+                                        <AdminOnly fallback="/tonieboxes">
+                                            <OpenBoxGuidePage />
+                                        </AdminOnly>
+                                    }
                                 />
                                 <Route
                                     path="/tonieboxes/boxsetup/boxversioninfo"
-                                    element={<BoxVersionInformationPage />}
+                                    element={
+                                        <AdminOnly fallback="/tonieboxes">
+                                            <BoxVersionInformationPage />
+                                        </AdminOnly>
+                                    }
                                 />
                                 <Route
                                     path="/tonieboxes/boxsetup/tb2/flashing"
-                                    element={<TB2BoxFlashingGuidePage />}
+                                    element={
+                                        <AdminOnly fallback="/tonieboxes">
+                                            <TB2BoxFlashingGuidePage />
+                                        </AdminOnly>
+                                    }
                                 />
                                 <Route
                                     path="/tonieboxes/boxsetup/esp32/flashing"
-                                    element={<ESP32BoxFlashingPage />}
+                                    element={
+                                        <AdminOnly fallback="/tonieboxes">
+                                            <ESP32BoxFlashingPage />
+                                        </AdminOnly>
+                                    }
                                 />
                                 <Route
                                     path="/tonieboxes/boxsetup/esp32/legacy"
-                                    element={<ESP32LegacyFlashingGuidePage />}
+                                    element={
+                                        <AdminOnly fallback="/tonieboxes">
+                                            <ESP32LegacyFlashingGuidePage />
+                                        </AdminOnly>
+                                    }
                                 />
                                 <Route
                                     path="/tonieboxes/boxsetup/cc3200/flashing"
-                                    element={<CC3200BoxFlashingGuidePage />}
+                                    element={
+                                        <AdminOnly fallback="/tonieboxes">
+                                            <CC3200BoxFlashingGuidePage />
+                                        </AdminOnly>
+                                    }
                                 />
                                 <Route
                                     path="/tonieboxes/boxsetup/cc3235/flashing"
-                                    element={<CC3235BoxFlashingGuidePage />}
+                                    element={
+                                        <AdminOnly fallback="/tonieboxes">
+                                            <CC3235BoxFlashingGuidePage />
+                                        </AdminOnly>
+                                    }
                                 />
                                 <Route
                                     path="/tonieboxes/plugin/:pluginId"
                                     element={<PluginPage />}
                                 />
 
-                                <Route path="/settings" element={<SettingsPage />} />
+                                <Route
+                                    path="/settings"
+                                    element={
+                                        <AdminOnly fallback="/settings/webauth">
+                                            <SettingsPage />
+                                        </AdminOnly>
+                                    }
+                                />
                                 <Route path="/settings/guisettings" element={<GUISettingsPage />} />
                                 <Route path="/settings/webauth" element={<WebAuthPage />} />
                                 <Route
                                     path="/settings/certificates"
-                                    element={<CertificatesPage />}
+                                    element={
+                                        <AdminOnly fallback="/settings/webauth">
+                                            <CertificatesPage />
+                                        </AdminOnly>
+                                    }
                                 />
-                                <Route path="/settings/rtnl" element={<RtnlPage />} />
+                                <Route
+                                    path="/settings/rtnl"
+                                    element={
+                                        <AdminOnly fallback="/settings/webauth">
+                                            <RtnlPage />
+                                        </AdminOnly>
+                                    }
+                                />
                                 <Route
                                     path="/settings/notifications"
                                     element={<NotificationsListPage />}

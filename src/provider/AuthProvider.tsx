@@ -2,20 +2,33 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import type { AuthStatus } from "../utils/auth/webAuthApi";
 import { setUserStorageScope } from "../utils/storage/userStorage";
+import { ReauthModal } from "../components/settings/webauth/ReauthModal";
 import {
     fetchAuthStatus,
     login as apiLogin,
+    loginSecondFactor as apiLoginSecondFactor,
     logout as apiLogout,
     setStoredToken,
 } from "../utils/auth/webAuthApi";
+
+/** A second factor is needed to finish the login. */
+export type PendingSecondFactor = { challenge: string; methods: string[] };
 
 type AuthContextValue = AuthStatus & {
     loading: boolean;
     error: string | null;
     statusAvailable: boolean;
     needsLogin: boolean;
+    needsTwoFactorSetup: boolean;
+    needsPasswordChange: boolean;
     refresh: () => Promise<void>;
-    login: (username: string, password: string) => Promise<void>;
+    /** resolves with the pending second factor, or null when the login is complete */
+    login: (username: string, password: string) => Promise<PendingSecondFactor | null>;
+    loginSecondFactor: (
+        challenge: string,
+        value: string,
+        method: "totp" | "recovery",
+    ) => Promise<{ recoveryCodesLeft?: number }>;
     logout: () => Promise<void>;
 };
 
@@ -27,6 +40,12 @@ const emptyStatus: AuthStatus = {
     username: "",
     envOverride: false,
     userCount: 0,
+    twoFactorSetupRequired: false,
+    passwordChangeRequired: false,
+    twoFactorEnabled: false,
+    twoFactorRequired: false,
+    recoveryCodesLeft: 0,
+    passwordMinLength: 10,
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -36,7 +55,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     // GUI settings are stored per user, so the scope must be switched before the UI reads them.
     const setStatus = useCallback((next: AuthStatus) => {
-        setUserStorageScope(next.enabled && next.loggedIn ? next.username : "");
+        setUserStorageScope(
+            next.enabled && (next.loggedIn || next.twoFactorSetupRequired) ? next.username : "",
+        );
         setStatusState(next);
     }, []);
 
@@ -48,7 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
             setStatus(next);
 
-            if (!next.loggedIn) {
+            if (!next.loggedIn && !next.twoFactorSetupRequired) {
                 setStoredToken(null);
             }
         } catch (err) {
@@ -102,10 +123,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return () => window.removeEventListener("teddycloud-auth-required", onAuthRequired);
     }, []);
 
-    const login = useCallback(async (username: string, password: string) => {
-        const next = await apiLogin(username, password);
-        setStatus(next);
-    }, []);
+    const login = useCallback(
+        async (username: string, password: string) => {
+            const result = await apiLogin(username, password);
+            if (!result.done) {
+                return { challenge: result.challenge, methods: result.methods };
+            }
+            setStatus(result.status);
+            return null;
+        },
+        [setStatus],
+    );
+
+    const loginSecondFactor = useCallback(
+        async (challenge: string, value: string, method: "totp" | "recovery") => {
+            const result = await apiLoginSecondFactor(challenge, value, method);
+            setStatus(result.status);
+            return { recoveryCodesLeft: result.recoveryCodesLeft };
+        },
+        [setStatus],
+    );
 
     const logout = useCallback(async () => {
         try {
@@ -129,15 +166,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             loading,
             error,
             statusAvailable: status !== null,
-            needsLogin: Boolean(status?.enabled && !status.loggedIn),
+            needsLogin: Boolean(
+                status?.enabled && !status.loggedIn && !status.twoFactorSetupRequired,
+            ),
+            needsTwoFactorSetup: Boolean(status?.enabled && status.twoFactorSetupRequired),
+            needsPasswordChange: Boolean(
+                status?.enabled && status.loggedIn && status.passwordChangeRequired,
+            ),
             refresh,
             login,
+            loginSecondFactor,
             logout,
         }),
-        [status, loading, error, refresh, login, logout],
+        [status, loading, error, refresh, login, loginSecondFactor, logout],
     );
 
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+    return (
+        <AuthContext.Provider value={value}>
+            {children}
+            {status?.enabled && status.loggedIn && !status.passwordChangeRequired ? (
+                <ReauthModal twoFactor={status.twoFactorEnabled} />
+            ) : null}
+        </AuthContext.Provider>
+    );
 };
 
 export const useAuth = (): AuthContextValue => {

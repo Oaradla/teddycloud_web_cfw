@@ -1,3 +1,6 @@
+import { useAcl } from "../../../provider/AclProvider";
+import { ShareButton } from "../../common/sharing/ShareButton";
+import { canShare } from "../../common/sharing/canShare";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Card, Checkbox, Tooltip, Typography, theme } from "antd";
@@ -66,6 +69,7 @@ export const TonieCard: React.FC<{
     onToggleSelect,
 }) => {
     const { t } = useTranslation();
+    const acl = useAcl();
     const { token } = useToken();
     const {
         addNotification,
@@ -545,10 +549,24 @@ export const TonieCard: React.FC<{
         ? [infoAction, playAction, cloudAction, liveAction]
         : [
               infoAction,
-              <EditOutlined key="edit" onClick={showModelModal} />,
+              ...(acl.can("tonie", tonieCard.ruid, "tonie.assign") ||
+              acl.can("tonie", tonieCard.ruid, "tonie.edit")
+                  ? [<EditOutlined key="edit" onClick={showModelModal} />]
+                  : []),
               playAction,
               cloudAction,
               liveAction,
+              ...(canShare(acl, "tonie", tonieCard.ruid)
+                  ? [
+                        <ShareButton
+                            key="share"
+                            type="tonie"
+                            id={tonieCard.ruid}
+                            title={tonieCard.tonieInfo.series || tonieCard.ruid}
+                            size="small"
+                        />,
+                    ]
+                  : []),
           ];
 
     // ------------------------

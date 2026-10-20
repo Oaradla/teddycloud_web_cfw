@@ -156,3 +156,57 @@ describe("defaultAPIConfig", () => {
         expect(config.basePath).toBe("http://teddycloud.local:8080");
     });
 });
+
+describe("defaultAPIConfig re-authentication", () => {
+    beforeEach(() => {
+        vi.stubEnv("VITE_APP_TEDDYCLOUD_API_URL", "");
+        setBaseHref("http://localhost/web/");
+    });
+
+    afterEach(async () => {
+        const { registerReauthHandler } = await import("../utils/auth/reauth");
+        registerReauthHandler(null);
+        vi.restoreAllMocks();
+        vi.unstubAllEnvs();
+        resetBasePathCache();
+    });
+
+    const reauthResponse = () =>
+        new Response(JSON.stringify({ error: "reauth_required" }), {
+            status: 403,
+            headers: { "Content-Type": "application/json" },
+        });
+
+    it("asks for the password once and sends the request again", async () => {
+        const { registerReauthHandler } = await import("../utils/auth/reauth");
+        const handler = vi.fn(async () => true);
+        registerReauthHandler(handler);
+        const fetchMock = vi
+            .spyOn(globalThis, "fetch")
+            .mockResolvedValueOnce(reauthResponse())
+            .mockResolvedValueOnce(new Response("{}", { status: 200 }));
+
+        const response = await defaultAPIConfig().fetchApi!("/api/auth/users/create", {
+            method: "POST",
+            body: "{}",
+        });
+
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(fetchMock).toHaveBeenCalledTimes(2);
+        expect(response.status).toBe(200);
+    });
+
+    it("returns the 403 when the confirmation is cancelled", async () => {
+        const { registerReauthHandler } = await import("../utils/auth/reauth");
+        registerReauthHandler(async () => false);
+        const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(reauthResponse());
+
+        const response = await defaultAPIConfig().fetchApi!("/api/auth/users/delete", {
+            method: "POST",
+            body: "{}",
+        });
+
+        expect(fetchMock).toHaveBeenCalledTimes(1);
+        expect(response.status).toBe(403);
+    });
+});

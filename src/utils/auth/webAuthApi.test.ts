@@ -25,9 +25,12 @@ import {
     deleteAuthUser,
     fetchAuthStatus,
     fetchAuthUsers,
+    disableTwoFactor,
     getStoredToken,
     login,
+    loginSecondFactor,
     logout,
+    renewRecoveryCodes,
     setAuthEnabled,
     setStoredToken,
 } from "./webAuthApi";
@@ -41,13 +44,16 @@ const jsonResponse = (data: unknown, status = 200) =>
 describe("webAuthApi", () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.unstubAllEnvs();
+        // the UI on the same origin as the API, as in production
+        vi.stubEnv("VITE_APP_TEDDYCLOUD_API_URL", "");
         sessionStorage.clear();
     });
 
     describe("token storage", () => {
-        it("stores and returns a token", () => {
+        it("does not store a token for a same-origin UI", () => {
             setStoredToken("abc123");
-            expect(getStoredToken()).toBe("abc123");
+            expect(getStoredToken()).toBeNull();
         });
 
         it("removes the token when null is passed", () => {
@@ -75,6 +81,13 @@ describe("webAuthApi", () => {
                 username: "alice",
                 envOverride: false,
                 userCount: 2,
+                twoFactorSetupRequired: false,
+                passwordChangeRequired: false,
+                twoFactorEnabled: false,
+                twoFactorRequired: false,
+                recoveryCodesLeft: 0,
+                passwordMinLength: 10,
+                client: undefined,
             });
 
             expect(apiMock.apiGetTeddyCloudApiRaw).toHaveBeenCalledWith("/api/auth/status");
@@ -91,6 +104,13 @@ describe("webAuthApi", () => {
                 username: "",
                 envOverride: false,
                 userCount: 0,
+                twoFactorSetupRequired: false,
+                passwordChangeRequired: false,
+                twoFactorEnabled: false,
+                twoFactorRequired: false,
+                recoveryCodesLeft: 0,
+                passwordMinLength: 10,
+                client: undefined,
             });
         });
 
@@ -120,9 +140,9 @@ describe("webAuthApi", () => {
     });
 
     describe("login", () => {
-        it("posts credentials, stores the token and returns the refreshed status", async () => {
+        it("posts credentials and returns the refreshed status, the cookie is the session", async () => {
             apiMock.apiPostTeddyCloudJsonRaw.mockResolvedValue(
-                jsonResponse({ token: "new-token" }),
+                jsonResponse({ ok: true, token: "new-token" }),
             );
             apiMock.apiGetTeddyCloudApiRaw.mockResolvedValue(
                 jsonResponse({
@@ -134,20 +154,77 @@ describe("webAuthApi", () => {
                 }),
             );
 
-            await expect(login("alice", "secret")).resolves.toEqual({
-                enabled: true,
-                loggedIn: true,
-                username: "alice",
-                envOverride: false,
-                userCount: 1,
-            });
+            const result = await login("alice", "secret");
+            expect(result.done).toBe(true);
+            expect(result.done && result.status.username).toBe("alice");
 
             expect(apiMock.apiPostTeddyCloudJsonRaw).toHaveBeenCalledWith("/api/auth/login", {
                 username: "alice",
                 password: "secret",
             });
-            expect(sessionStorage.getItem("teddycloud_web_token")).toBe("new-token");
+            // same origin: the HttpOnly cookie is enough, scripts must not see the token
+            expect(sessionStorage.getItem("teddycloud_web_token")).toBeNull();
             expect(apiMock.apiGetTeddyCloudApiRaw).toHaveBeenCalledWith("/api/auth/status");
+        });
+
+        it("keeps the token when the API is on another origin (dev server)", async () => {
+            vi.stubEnv("VITE_APP_TEDDYCLOUD_API_URL", "http://teddycloud.local:8080");
+            setStoredToken("dev-token");
+            expect(getStoredToken()).toBe("dev-token");
+        });
+
+        it("returns the challenge when a second factor is needed", async () => {
+            apiMock.apiPostTeddyCloudJsonRaw.mockResolvedValue(
+                jsonResponse({
+                    ok: false,
+                    twoFactorRequired: true,
+                    challenge: "c1",
+                    methods: ["totp", "recovery"],
+                }),
+            );
+
+            await expect(login("alice", "secret")).resolves.toEqual({
+                done: false,
+                challenge: "c1",
+                methods: ["totp", "recovery"],
+            });
+            expect(apiMock.apiGetTeddyCloudApiRaw).not.toHaveBeenCalled();
+        });
+
+        it("sends a TOTP code or a recovery code for the second step", async () => {
+            apiMock.apiPostTeddyCloudJsonRaw.mockImplementation(async () =>
+                jsonResponse({ ok: true, recoveryCodesLeft: 9 }),
+            );
+            apiMock.apiGetTeddyCloudApiRaw.mockImplementation(async () =>
+                jsonResponse({ enabled: true, loggedIn: true }),
+            );
+
+            await expect(loginSecondFactor("c1", "123456", "totp")).resolves.toMatchObject({
+                recoveryCodesLeft: 9,
+            });
+            expect(apiMock.apiPostTeddyCloudJsonRaw).toHaveBeenCalledWith("/api/auth/login2fa", {
+                challenge: "c1",
+                code: "123456",
+            });
+            await loginSecondFactor("c1", "ABCDE-FGHIJ", "recovery");
+            expect(apiMock.apiPostTeddyCloudJsonRaw).toHaveBeenLastCalledWith(
+                "/api/auth/login2fa",
+                {
+                    challenge: "c1",
+                    recoveryCode: "ABCDE-FGHIJ",
+                },
+            );
+        });
+
+        it("passes the retry time of a lockout", async () => {
+            apiMock.apiPostTeddyCloudJsonRaw.mockResolvedValue(
+                jsonResponse({ error: "rate_limited", retryAfter: 120 }, 429),
+            );
+
+            await expect(login("alice", "wrong")).rejects.toMatchObject({
+                code: "rate_limited",
+                retryAfter: 120,
+            });
         });
 
         it("throws rate_limited for HTTP 429", async () => {
@@ -204,8 +281,12 @@ describe("webAuthApi", () => {
 
             await expect(fetchAuthUsers()).resolves.toEqual({
                 users: [],
+                userDetails: [],
                 enabled: true,
                 envOverride: false,
+                require2faAll: false,
+                maxUsers: 0,
+                passwordMinLength: 10,
             });
         });
 
@@ -229,6 +310,44 @@ describe("webAuthApi", () => {
             expect(apiMock.apiPostTeddyCloudJsonRaw).toHaveBeenCalledWith(
                 "/api/auth/users/delete",
                 { username: "bob" },
+            );
+        });
+
+        it("sends the current password when changing the own password", async () => {
+            apiMock.apiPostTeddyCloudJsonRaw.mockResolvedValue(
+                jsonResponse({ sessionsRevoked: 2 }),
+            );
+
+            await expect(changeAuthPassword("bob", "new-secret", "old-secret")).resolves.toEqual({
+                sessionsRevoked: 2,
+            });
+
+            expect(apiMock.apiPostTeddyCloudJsonRaw).toHaveBeenCalledWith(
+                "/api/auth/users/updatePassword",
+                { username: "bob", password: "new-secret", currentPassword: "old-secret" },
+            );
+        });
+
+        it("tells a TOTP code from a recovery code when confirming", async () => {
+            apiMock.apiPostTeddyCloudJsonRaw.mockImplementation(async () =>
+                jsonResponse({ recoveryCodes: ["A"] }),
+            );
+
+            await renewRecoveryCodes("pw", "123 456");
+            expect(apiMock.apiPostTeddyCloudJsonRaw).toHaveBeenLastCalledWith(
+                "/api/auth/2fa/recoveryCodes",
+                {
+                    password: "pw",
+                    code: "123456",
+                },
+            );
+            await disableTwoFactor("pw", " abcde-fghij ");
+            expect(apiMock.apiPostTeddyCloudJsonRaw).toHaveBeenLastCalledWith(
+                "/api/auth/2fa/disable",
+                {
+                    password: "pw",
+                    recoveryCode: "abcde-fghij",
+                },
             );
         });
 

@@ -1,3 +1,5 @@
+import { useAcl } from "../../provider/AclProvider";
+import { restrictMenu } from "../../utils/auth/navFilter";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
@@ -13,7 +15,7 @@ import {
     MinusOutlined,
     PlusOutlined,
     ExportOutlined,
-    LockOutlined,
+    TeamOutlined,
     AppstoreOutlined,
 } from "@ant-design/icons";
 
@@ -29,6 +31,7 @@ import { TeddyCloudSection } from "../../types/pluginsMetaTypes";
 const api = new TeddyCloudApi(defaultAPIConfig());
 
 export const SettingsSubNav = () => {
+    const acl = useAcl();
     const { t, i18n } = useTranslation();
     const {
         setNavOpen,
@@ -134,10 +137,6 @@ export const SettingsSubNav = () => {
             newKeys.push("general");
             newKeys.push("guisettings");
         }
-        if (pathname.includes("/settings/webauth")) {
-            newKeys.push("general");
-            newKeys.push("webauth");
-        }
         setOpenKeys((prevKeys) => Array.from(new Set([...prevKeys, ...newKeys])));
     };
 
@@ -203,23 +202,23 @@ export const SettingsSubNav = () => {
                     icon: React.createElement(SettingOutlined),
                     title: t("settings.guiSettings.navigationTitle"),
                 },
-                {
-                    key: "webauth",
-                    label: (
-                        <Link
-                            to="/settings/webauth"
-                            onClick={() => {
-                                setNavOpen(false);
-                                setSubNavOpen(false);
-                            }}
-                        >
-                            {t("settings.webAuth.navigationTitle")}
-                        </Link>
-                    ),
-                    icon: React.createElement(LockOutlined),
-                    title: t("settings.webAuth.navigationTitle"),
-                },
             ],
+        },
+        {
+            key: "webauth",
+            label: (
+                <Link
+                    to="/settings/webauth"
+                    onClick={() => {
+                        setNavOpen(false);
+                        setSubNavOpen(false);
+                    }}
+                >
+                    {t("settings.webAuth.navigationTitle")}
+                </Link>
+            ),
+            icon: React.createElement(TeamOutlined),
+            title: t("settings.webAuth.navigationTitle"),
         },
         {
             key: "certificates",
@@ -323,7 +322,22 @@ export const SettingsSubNav = () => {
             openKeys={openKeys}
             selectedKeys={[]}
             onOpenChange={onOpenChange}
-            items={subnav}
+            items={
+                acl.admin
+                    ? subnav
+                    : restrictMenu(
+                          subnav,
+                          [
+                              "certificates",
+                              "tcplugins",
+                              "rtnl",
+                              "reload_toniesJson",
+                              "restart_server",
+                              "plugin-*",
+                          ],
+                          ["general"],
+                      )
+            }
             expandIcon={({ isOpen }) => customExpandIcon({ isOpen })}
         />
     );

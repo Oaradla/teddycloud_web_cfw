@@ -4,6 +4,7 @@ import { TeddyCloudApi } from "../../../../api";
 import { defaultAPIConfig } from "../../../../config/defaultApiConfig";
 import { useTeddyCloud } from "../../../../provider/TeddyCloudProvider";
 import { NotificationTypeEnum } from "../../../../types/teddyCloudNotificationTypes";
+import { buildTap } from "../../../../utils/playlist/tapApi";
 
 const api = new TeddyCloudApi(defaultAPIConfig());
 
@@ -58,22 +59,54 @@ export const useTapEditor = ({ currentPath, setRebuildList }: UseTapEditorArgs) 
                         .replace(/[<>:"/\\|?*\u0000-\u001F]/g, "_")
                         .replace(/[. ]+$/g, "") || "untitled";
 
-                const fileName = `${safeName}.tap`;
+                // an edited playlist keeps its file, a new one is named after the playlist
+                const editedFile = currentFile ? ensureLeadingSlash(currentFile) : "";
+                const fileName = editedFile ? editedFile.split("/").pop()! : `${safeName}.tap`;
+                const dir = editedFile
+                    ? editedFile.slice(0, editedFile.lastIndexOf("/")) || "/"
+                    : normalizedCurrentPath;
 
-                const json = JSON.stringify(values, null, 2);
+                const tap = {
+                    type: "tap",
+                    audio_id: Number(values.audio_id) || 0,
+                    filepath: values.filepath,
+                    name: values.name,
+                    files: (values.files ?? []).map((f: any) => ({
+                        filepath: f.filepath,
+                        name: f.name,
+                    })),
+                };
+                const json = JSON.stringify(tap, null, 2);
                 const file = new File([json], fileName, { type: "application/json" });
 
                 const formData = new FormData();
                 formData.append(fileName, file);
 
                 const response = await api.apiPostTeddyCloudFormDataRaw(
-                    `/api/fileUpload?path=${encodeURIComponent(normalizedCurrentPath)}&special=library`,
+                    `/api/fileUpload?path=${encodeURIComponent(dir)}&special=library`,
                     formData,
                 );
 
                 if (!response.ok) {
                     const msg = await response.text().catch(() => "");
                     throw new Error(`Upload failed (${response.status}): ${msg}`);
+                }
+
+                // put the playlist TAF together right away (TAF files) or tell when it happens
+                let buildMessage = "";
+                try {
+                    const result = await buildTap(`${dir.replace(/\/+$/, "")}/${fileName}`);
+                    buildMessage = result.built
+                        ? t("fileBrowser.tap.messages.built")
+                        : t("fileBrowser.tap.messages.encodedOnPlayback");
+                } catch (err: any) {
+                    addNotification(
+                        NotificationTypeEnum.Warning,
+                        t("fileBrowser.tap.messages.buildFailed"),
+                        t("fileBrowser.tap.messages.buildFailedDetails", { file: fileName }) +
+                            ` ${err?.message || ""}`,
+                        t("fileBrowser.title"),
+                    );
                 }
 
                 setIsTapEditorModalOpen(false);
@@ -83,8 +116,8 @@ export const useTapEditor = ({ currentPath, setRebuildList }: UseTapEditorArgs) 
                     t("fileBrowser.tap.messages.savedSuccessfully"),
                     t("fileBrowser.tap.messages.savedSuccessfullyDetails", {
                         file: fileName,
-                        path: normalizedCurrentPath || "/",
-                    }),
+                        path: dir || "/",
+                    }) + (buildMessage ? ` ${buildMessage}` : ""),
                     t("fileBrowser.title"),
                 );
 
@@ -101,7 +134,7 @@ export const useTapEditor = ({ currentPath, setRebuildList }: UseTapEditorArgs) 
                 );
             }
         },
-        [addNotification, currentPath, normalizedCurrentPath, setRebuildList, t],
+        [addNotification, currentFile, currentPath, normalizedCurrentPath, setRebuildList, t],
     );
 
     return {

@@ -1,3 +1,5 @@
+import { useAcl } from "../../provider/AclProvider";
+import { restrictMenu } from "../../utils/auth/navFilter";
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router-dom";
@@ -19,6 +21,7 @@ import { TonieboxIcon } from "../common/icons/TonieboxIcon";
 import { TeddyCloudSection } from "../../types/pluginsMetaTypes";
 
 export const TonieboxesSubNav = () => {
+    const acl = useAcl();
     const { t, i18n } = useTranslation();
     const { setNavOpen, setSubNavOpen, setCurrentTCSection, plugins } = useTeddyCloud();
     const location = useLocation();
@@ -308,7 +311,7 @@ export const TonieboxesSubNav = () => {
             openKeys={openKeys}
             selectedKeys={[]}
             onOpenChange={onOpenChange}
-            items={subnav}
+            items={acl.admin ? subnav : restrictMenu(subnav, ["boxsetup", "boxupdate"], [])}
             expandIcon={({ isOpen }) => customExpandIcon({ isOpen })}
         />
     );

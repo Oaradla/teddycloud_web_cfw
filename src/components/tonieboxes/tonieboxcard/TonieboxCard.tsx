@@ -1,3 +1,6 @@
+import { useAcl } from "../../../provider/AclProvider";
+import { ShareButton } from "../../common/sharing/ShareButton";
+import { canShare } from "../../common/sharing/canShare";
 import React, { JSX, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -51,6 +54,7 @@ export const TonieboxCard: React.FC<{
     cfwBox?: CfwBox;
 }> = ({ tonieboxCard, tonieboxImages, readOnly = false, checkCC3200CFW = false, cfwBox }) => {
     const { t, i18n } = useTranslation();
+    const acl = useAcl();
     const { token } = useToken();
     const { addNotification, addLoadingNotification, closeLoadingNotification } = useTeddyCloud();
     const triggerWriteConfig = useTriggerWriteConfig();
@@ -646,25 +650,37 @@ export const TonieboxCard: React.FC<{
                                       </Tooltip>
                                   )}
                               </>,
-                              <EditOutlined key="edit" onClick={() => showModelModal()} />,
-                              <Tooltip
-                                  key="certificate"
-                                  open={!canHover || !certStatus ? false : undefined}
-                                  title={t(
-                                      `tonieboxes.boxCertificate.statusText.${certStatus || "none"}`,
-                                  )}
-                              >
-                                  <SafetyCertificateOutlined
-                                      style={{ marginRight: 8, color: certStatusColor() }}
-                                      onClick={handleUploadCertificatesClick}
-                                  />
-                              </Tooltip>,
-                              <SettingOutlined
-                                  key="settings"
-                                  style={{ marginRight: 8 }}
-                                  onClick={handleEditSettingsClick}
-                              />,
-                              ...(cfwRemote
+                              ...(acl.can("box", tonieboxCard.ID, "box.setting:boxModel")
+                                  ? [<EditOutlined key="edit" onClick={() => showModelModal()} />]
+                                  : []),
+                              ...(acl.admin
+                                  ? [
+                                        <Tooltip
+                                            key="certificate"
+                                            open={!canHover || !certStatus ? false : undefined}
+                                            title={t(
+                                                `tonieboxes.boxCertificate.statusText.${certStatus || "none"}`,
+                                            )}
+                                        >
+                                            <SafetyCertificateOutlined
+                                                style={{ marginRight: 8, color: certStatusColor() }}
+                                                onClick={handleUploadCertificatesClick}
+                                            />
+                                        </Tooltip>,
+                                    ]
+                                  : []),
+                              ...(acl.admin ||
+                              acl.can("box", tonieboxCard.ID, "box.settings") ||
+                              !!acl.boxes[tonieboxCard.ID]?.granted?.includes("box.setting:")
+                                  ? [
+                                        <SettingOutlined
+                                            key="settings"
+                                            style={{ marginRight: 8 }}
+                                            onClick={handleEditSettingsClick}
+                                        />,
+                                    ]
+                                  : []),
+                              ...(cfwRemote && acl.can("box", tonieboxCard.ID, "box.cfw")
                                   ? [
                                         <Tooltip key="cfw-remote" title={t("cfw.remote.open")}>
                                             <ControlOutlined
@@ -674,11 +690,27 @@ export const TonieboxCard: React.FC<{
                                         </Tooltip>,
                                     ]
                                   : []),
-                              <DeleteOutlined
-                                  key="delete"
-                                  style={{ marginRight: 8 }}
-                                  onClick={showDeleteConfirmDialog}
-                              />,
+                              // a card action without content still takes its place in the row
+                              ...(canShare(acl, "box", tonieboxCard.ID)
+                                  ? [
+                                        <ShareButton
+                                            key="share"
+                                            type="box"
+                                            id={tonieboxCard.ID}
+                                            title={tonieboxName}
+                                            size="small"
+                                        />,
+                                    ]
+                                  : []),
+                              ...(acl.admin
+                                  ? [
+                                        <DeleteOutlined
+                                            key="delete"
+                                            style={{ marginRight: 8 }}
+                                            onClick={showDeleteConfirmDialog}
+                                        />,
+                                    ]
+                                  : []),
                           ]
                         : []
                 }

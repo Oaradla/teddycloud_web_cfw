@@ -1,5 +1,16 @@
 import React from "react";
-import { Button, Divider, Dropdown, Input, Space, Switch, Tooltip, Upload, theme } from "antd";
+import {
+    Button,
+    Divider,
+    Dropdown,
+    Input,
+    Segmented,
+    Space,
+    Switch,
+    Tooltip,
+    Upload,
+    theme,
+} from "antd";
 import { useTranslation } from "react-i18next";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { EllipsisOutlined, FolderAddOutlined, InboxOutlined } from "@ant-design/icons";
@@ -25,10 +36,12 @@ export const Encoder: React.FC = () => {
         processing,
         tafFilename,
         hasInvalidChars,
+        splitIntoPlaylist,
         useFrontendEncoding,
         useFrontendEncodingSetting,
 
         // Actions
+        setSplitIntoPlaylist,
         setUseFrontendEncoding,
         sortFileListAlphabeticallyLiteral,
         sortFileListAlphabeticallyNatural,
@@ -242,9 +255,34 @@ export const Encoder: React.FC = () => {
                                         justifyContent: "flex-end",
                                         alignItems: "center",
                                         marginTop: 8,
+                                        flexWrap: "wrap",
                                         gap: 16,
                                     }}
                                 >
+                                    {fileList.length > 1 ? (
+                                        <Tooltip
+                                            open={!canHover ? false : undefined}
+                                            title={t("tonies.encoder.outputPlaylistTooltip")}
+                                        >
+                                            <Segmented
+                                                value={splitIntoPlaylist ? "playlist" : "single"}
+                                                onChange={(value) =>
+                                                    setSplitIntoPlaylist(value === "playlist")
+                                                }
+                                                disabled={uploading || processing}
+                                                options={[
+                                                    {
+                                                        value: "single",
+                                                        label: t("tonies.encoder.outputSingle"),
+                                                    },
+                                                    {
+                                                        value: "playlist",
+                                                        label: t("tonies.encoder.outputPlaylist"),
+                                                    },
+                                                ]}
+                                            />
+                                        </Tooltip>
+                                    ) : null}
                                     <Switch
                                         checkedChildren={t("tonies.encoder.browserSideEncoding")}
                                         unCheckedChildren={t("tonies.encoder.serverSideEncoding")}

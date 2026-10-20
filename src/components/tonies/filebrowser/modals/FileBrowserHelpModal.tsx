@@ -15,6 +15,7 @@ import {
     ClockCircleOutlined,
     CheckCircleOutlined,
     SwapOutlined,
+    ScissorOutlined,
 } from "@ant-design/icons";
 
 interface HelpModalProps {
@@ -79,6 +80,12 @@ const HelpModal: React.FC<HelpModalProps> = ({ open, onClose }) => {
             icon: <EditOutlined />,
             title: t("fileBrowser.help.actionItems.editTAPPlaylist.title"),
             text: t("fileBrowser.help.actionItems.editTAPPlaylist.text"),
+        },
+        {
+            key: 14,
+            icon: <ScissorOutlined />,
+            title: t("fileBrowser.help.actionItems.splitTafToPlaylist.title"),
+            text: t("fileBrowser.help.actionItems.splitTafToPlaylist.text"),
         },
         {
             key: 6,

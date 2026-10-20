@@ -22,6 +22,7 @@ import {
     WasmTafEncoder,
 } from "../../../../utils/audio/wasmEncoder";
 import { useDirectoryTree } from "../../common/hooks/useDirectoryTree";
+import { splitTafToPlaylist } from "../../../../utils/playlist/tapApi";
 
 const api = new TeddyCloudApi(defaultAPIConfig());
 
@@ -39,6 +40,8 @@ export const useEncoder = () => {
     const [uploading, setUploading] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [tafFilename, setTafFilename] = useState("");
+    // every file becomes a TAF of its own in a folder, put together by a playlist
+    const [splitIntoPlaylist, setSplitIntoPlaylist] = useState(false);
 
     const [isCreateDirectoryModalOpen, setCreateDirectoryModalOpen] = useState(false);
     const [createDirectoryPath, setCreateDirectoryPath] = useState<string>("");
@@ -123,6 +126,53 @@ export const useEncoder = () => {
 
     const directoryTree = useDirectoryTree();
     const { treeNodeId, setTreeData, getPathFromNodeId } = directoryTree;
+
+    // -------------------------------------------------
+    // Playlist: split the new TAF into one TAF per file
+    // -------------------------------------------------
+
+    const finishUpload = async (key: string, tafName: string, titles: string[]) => {
+        if (!splitIntoPlaylist || titles.length < 2) {
+            closeLoadingNotification(key);
+            addNotification(
+                NotificationTypeEnum.Success,
+                t("tonies.encoder.uploadSuccessful"),
+                t("tonies.encoder.uploadSuccessfulDetails", { file: tafName }),
+                t("tonies.title"),
+            );
+            return;
+        }
+        addLoadingNotification(
+            key,
+            t("tonies.encoder.processing"),
+            t("tonies.encoder.creatingPlaylist"),
+        );
+        try {
+            const dir = getPathFromNodeId(treeNodeId).replace(/\/+$/, "");
+            const result = await splitTafToPlaylist(`${dir}/${tafName}`, titles);
+            closeLoadingNotification(key);
+            addNotification(
+                NotificationTypeEnum.Success,
+                t("tonies.encoder.uploadSuccessful"),
+                t("tonies.encoder.playlistCreatedDetails", {
+                    file: tafName,
+                    folder: "/" + result.folder,
+                    count: result.chapters,
+                }),
+                t("tonies.title"),
+            );
+        } catch (err) {
+            closeLoadingNotification(key);
+            addNotification(
+                NotificationTypeEnum.Warning,
+                t("tonies.encoder.playlistFailed"),
+                t("tonies.encoder.playlistFailedDetails", { file: tafName }) + " " + err,
+                t("tonies.title"),
+            );
+        }
+    };
+
+    const fileTitles = (files: MyUploadFile[]) => files.map((f) => f.name.replace(/\.[^/.]+$/, ""));
 
     // -------------------------------------------------
     // DnD / Upload-Liste
@@ -298,17 +348,12 @@ export const useEncoder = () => {
                 `/api/pcmUpload?${queryString}`,
                 formData,
             );
-            closeLoadingNotification(key);
             if (response.ok) {
-                addNotification(
-                    NotificationTypeEnum.Success,
-                    t("tonies.encoder.uploadSuccessful"),
-                    t("tonies.encoder.uploadSuccessfulDetails", { file: tafFilename + ".taf" }),
-                    t("tonies.title"),
-                );
+                await finishUpload(key, tafFilename + ".taf", fileTitles(fileList));
                 setFileList([]);
                 setTafFilename("");
             } else {
+                closeLoadingNotification(key);
                 addNotification(
                     NotificationTypeEnum.Error,
                     t("tonies.encoder.uploadFailed"),
@@ -394,17 +439,12 @@ export const useEncoder = () => {
                 `/api/tafUpload?${queryString}`,
                 formData,
             );
-            closeLoadingNotification(key);
             if (response.ok) {
-                addNotification(
-                    NotificationTypeEnum.Success,
-                    t("tonies.encoder.uploadSuccessful"),
-                    t("tonies.encoder.uploadSuccessfulDetails", { file: tafFilename + ".taf" }),
-                    t("tonies.title"),
-                );
+                await finishUpload(key, tafFilename + ".taf", fileTitles(fileList));
                 setFileList([]);
                 setTafFilename("");
             } else {
+                closeLoadingNotification(key);
                 addNotification(
                     NotificationTypeEnum.Error,
                     t("tonies.encoder.uploadFailed"),
@@ -433,6 +473,7 @@ export const useEncoder = () => {
         processing,
         tafFilename,
         hasInvalidChars,
+        splitIntoPlaylist,
         useFrontendEncoding,
         useFrontendEncodingSetting,
         isCreateDirectoryModalOpen,
@@ -440,6 +481,7 @@ export const useEncoder = () => {
         inputRef,
 
         // Actions
+        setSplitIntoPlaylist,
         setUseFrontendEncoding,
         sortFileListAlphabeticallyLiteral,
         sortFileListAlphabeticallyNatural,

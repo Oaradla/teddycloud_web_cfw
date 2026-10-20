@@ -1,3 +1,4 @@
+import { ShareButton } from "../../common/sharing/ShareButton";
 import {
     CloseOutlined,
     CloudSyncOutlined,
@@ -53,6 +54,8 @@ import UploadFilesModal from "./modals/UploadFilesModal";
 import { canHover } from "../../../utils/browser/browserUtils";
 import { useTapEditor } from "./hooks/useTAPEditor";
 import { useTafMetaEditor } from "./hooks/useTafMetaEditor";
+import { useTafSplit } from "./hooks/useTafSplit";
+import TafSplitModal from "./modals/TafSplitModal";
 import { CustomModelEditor } from "../custommodel/CustomModelEditor";
 import { UnusedTAFsModal } from "./modals/UnusedTAFsModal";
 import CustomJsonSnippetModal from "./modals/CustomJsonSnippetModal";
@@ -297,6 +300,17 @@ export const FileBrowser: React.FC<{
         setIsAssignTonieModalOpen(false);
     };
 
+    // split a TAF into a playlist folder
+    const { tafSplitRecord, splitting, openTafSplit, closeTafSplit, confirmTafSplit } = useTafSplit(
+        {
+            path,
+            onSplit: (result) => {
+                setRebuildList((prev) => !prev);
+                handleDirClick(result.folder.split("/").pop() ?? "");
+            },
+        },
+    );
+
     // encode files
     const showFileEncodeModal = () => {
         setTreeNodeId(rootTreeNode.id);
@@ -423,6 +437,7 @@ export const FileBrowser: React.FC<{
         handleFileDownload: handleFileDownloadClick,
         migrateContent2Lib,
         handleEditTapClick: openEditTap,
+        handleSplitTafClick: special === "library" ? openTafSplit : undefined,
         handleEditTafMetaDataClick: openTafMetaEditor,
         showRenameDialog,
         showMoveDialog,
@@ -562,6 +577,12 @@ export const FileBrowser: React.FC<{
                     setSelectedRowKeys={setSelectedRowKeys}
                 />
             )}
+            <TafSplitModal
+                record={tafSplitRecord}
+                splitting={splitting}
+                onConfirm={confirmTafSplit}
+                onCancel={closeTafSplit}
+            />
             {isTapEditorModalOpen && (
                 <TeddyAudioPlaylistEditor
                     open={isTapEditorModalOpen}
@@ -756,6 +777,14 @@ export const FileBrowser: React.FC<{
                                 ) : (
                                     <></>
                                 )}
+                                {special === "library" ? (
+                                    <ShareButton
+                                        type="folder"
+                                        id={path.replace(/^\/+/, "")}
+                                        title={path || "/"}
+                                        size="small"
+                                    />
+                                ) : null}
                                 <Button
                                     icon={<FolderAddOutlined />}
                                     size="small"

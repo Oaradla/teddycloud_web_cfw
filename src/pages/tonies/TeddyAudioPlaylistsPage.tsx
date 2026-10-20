@@ -31,9 +31,7 @@ export const TeddyAudioPlaylistsPage = () => {
 
                     <Alert
                         title={t("settings.information")}
-                        description=<div>
-                            Development still in progress - Feature is still unstable!
-                        </div>
+                        description={t("tonies.tap.info")}
                         type="info"
                         showIcon
                         style={{ marginBottom: 8 }}

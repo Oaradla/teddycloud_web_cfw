@@ -1,3 +1,5 @@
+import { useAcl } from "../../provider/AclProvider";
+import { restrictMenu } from "../../utils/auth/navFilter";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
@@ -22,6 +24,7 @@ import { TeddyCloudSection } from "../../types/pluginsMetaTypes";
 import { useCustomModelsEditorLauncher } from "./hooks/useCustomModelsEditorFeature";
 
 export const ToniesSubNav = () => {
+    const acl = useAcl();
     const { t } = useTranslation();
     const { setNavOpen, setSubNavOpen, setCurrentTCSection, plugins } = useTeddyCloud();
     const { launchCustomModelsEditor } = useCustomModelsEditorLauncher();
@@ -227,7 +230,11 @@ export const ToniesSubNav = () => {
             mode="inline"
             selectedKeys={[selectedKey]}
             defaultOpenKeys={["sub"]}
-            items={subnav}
+            items={
+                acl.admin
+                    ? subnav
+                    : restrictMenu(subnav, ["custom-json", "content", "system-sounds"], [])
+            }
         />
     );
 };
