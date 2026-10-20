@@ -10,6 +10,8 @@ export interface TapBuildResult {
     remux: boolean;
     filepath?: string;
     error?: string;
+    /** the built TAF, which the file lists leave out */
+    tafHeader?: { audioId: number; sha1Hash: string };
 }
 
 export interface TafSplitResult {

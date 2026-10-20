@@ -56,7 +56,7 @@ export interface CreateColumnsOptions {
     downloading?: { [key: string]: boolean };
 
     defaultSorter: (a: any, b: any, dataIndex: string | string[]) => number;
-    dirNameSorter: (a: any, b: any) => number;
+    dirNameSorter: (a: any, b: any, order?: SortOrder) => number;
 
     withinTafBoundaries?: (numberOfFiles: number) => boolean;
     handleDirClick: (dirName: string) => void;
@@ -137,6 +137,8 @@ export const createColumns = (options: CreateColumnsOptions): any[] => {
     const getPictureSrc = (record: any): string | null => {
         if (!record) return null;
         if (record.tonieInfo?.picture) return toImageSrc(record.tonieInfo.picture);
+        // a folder shows the cover of the only tonie file in it (the server names it)
+        if (record.isDir && record.folderPicture) return toImageSrc(record.folderPicture);
         if (!record.isDir && buildContentUrl && isImageFileName(record.name)) {
             const path = buildContentUrl(record.name);
             return toImageSrc(path.startsWith("/") ? path : `/${path}`);

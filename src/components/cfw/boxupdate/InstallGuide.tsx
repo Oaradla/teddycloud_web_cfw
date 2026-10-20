@@ -61,7 +61,19 @@ export const InstallGuide: React.FC<{ open: boolean }> = ({ open }) => {
                                             <strong>{t("cfw.update.guide.cc3200.title")}</strong>
                                         ),
                                         children: (
-                                            <Steps prefix="cfw.update.guide.cc3200" count={7} />
+                                            <>
+                                                <Steps prefix="cfw.update.guide.cc3200" count={7} />
+                                                <Paragraph>
+                                                    <Trans
+                                                        i18nKey="cfw.update.guide.cc3200.cardZip"
+                                                        components={{
+                                                            card: (
+                                                                <Link to="/tonieboxes/boxsetup/cc3200/flashing?way=card" />
+                                                            ),
+                                                        }}
+                                                    />
+                                                </Paragraph>
+                                            </>
                                         ),
                                     },
                                     {

@@ -40,7 +40,12 @@ const TafSplitModal: React.FC<TafSplitModalProps> = ({
                     ? t("fileBrowser.tafSplit.descriptionCount", { count: chapters, folder })
                     : t("fileBrowser.tafSplit.description", { folder })}
             </Paragraph>
-            <Paragraph>{t("fileBrowser.tafSplit.originalStays", { file: name })}</Paragraph>
+            <Paragraph>
+                {t("fileBrowser.tafSplit.originalStays", {
+                    file: name,
+                    playlist: `${folder}.tap.taf`,
+                })}
+            </Paragraph>
         </Modal>
     );
 };

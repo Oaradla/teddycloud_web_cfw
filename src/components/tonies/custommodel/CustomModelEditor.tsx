@@ -13,6 +13,7 @@ import {
     theme,
     Typography,
 } from "antd";
+import { CompressOutlined } from "@ant-design/icons";
 
 import { TonieCardProps, TonieInfo } from "../../../types/tonieTypes";
 import { TeddyCloudApi } from "../../../api";
@@ -25,6 +26,7 @@ import { SelectAudioModal } from "../common/modals/SelectAudioModal";
 import { CustomModelFilters } from "./CustomModelFilters";
 import { CustomModelList } from "./CustomModelList";
 import { CustomModelForm } from "./CustomModelForm";
+import { ImageOptimizerModal } from "./modals/ImageOptimizerModal";
 import type {
     CustomEntry,
     FormValues,
@@ -134,6 +136,7 @@ export const CustomModelEditor: React.FC<CustomModelEditorProps> = ({
 
     const [customEntries, setCustomEntries] = useState<CustomEntry[]>([]);
     const [persistedEntries, setPersistedEntries] = useState<CustomEntry[]>([]);
+    const [optimizerOpen, setOptimizerOpen] = useState(false);
     const [baseEntries, setBaseEntries] = useState<CustomEntry[]>([]);
     const [editIndex, setEditIndex] = useState<number | null>(null);
     const [editModalOpen, setEditModalOpen] = useState(false);
@@ -1087,6 +1090,24 @@ export const CustomModelEditor: React.FC<CustomModelEditorProps> = ({
             <Col span={24}>
                 {!singleFormMode ? (
                     <>
+                        <div
+                            style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}
+                        >
+                            <Button
+                                size="small"
+                                icon={<CompressOutlined />}
+                                onClick={() => setOptimizerOpen(true)}
+                            >
+                                {t("tonies.customEditor.optimizeImages.button")}
+                            </Button>
+                        </div>
+                        <ImageOptimizerModal
+                            open={optimizerOpen}
+                            entries={persistedEntries}
+                            onClose={() => setOptimizerOpen(false)}
+                            onSave={(entry) => postJson("/api/toniesCustomJsonUpsert", entry)}
+                            onDone={() => void loadJsonData()}
+                        />
                         <CustomModelFilters
                             filterText={filterText}
                             setFilterText={setFilterText}

@@ -22,4 +22,6 @@ export type Record = {
     tafHeader: RecordTafHeader;
     tonieInfo: TonieInfo;
     listened?: boolean;
+    /** a folder: the cover of the only tonie file in it */
+    folderPicture?: string;
 };

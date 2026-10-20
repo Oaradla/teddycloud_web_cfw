@@ -621,3 +621,10 @@ The upstream project, teddycloud_web of toniebox-reverse-engineering,
 publishes no licence file; its code keeps the copyright of its authors. This
 repository adds the support for the custom firmware on top of it.
 
+
+The CC3200 setup in the browser
+(`src/components/tonieboxes/boxsetup/cc3200/browser/protocol.ts`) is a port of
+[cc3200tool](https://github.com/toniebox-reverse-engineering/cc3200tool)
+(GPL-2.0-or-later, Copyright (C) 2016-2020 Allterco Robotics), and
+`rbtl3100s.dll` next to it is Texas Instruments' CC3200 NWP bootloader patch
+as cc3200tool ships it (no licence stated).

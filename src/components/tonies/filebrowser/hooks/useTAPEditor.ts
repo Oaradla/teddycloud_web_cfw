@@ -16,6 +16,12 @@ type UseTapEditorArgs = {
 const ensureLeadingSlash = (p: string) => (p.startsWith("/") ? p : `/${p}`);
 const isTap = (p: string) => (p ?? "").toLowerCase().endsWith(".tap");
 
+/** where a playlist builds its TAF by default: next to it, named after it ("x.tap" -> "x.tap.taf"); the library hides it */
+export const builtTafPath = (dir: string, tapFileName: string) => {
+    const d = dir.replace(/^\/+|\/+$/g, "");
+    return `lib://${d ? `${d}/` : ""}${tapFileName}.taf`;
+};
+
 export const useTapEditor = ({ currentPath, setRebuildList }: UseTapEditorArgs) => {
     const { t } = useTranslation();
     const { addNotification } = useTeddyCloud();
@@ -69,7 +75,7 @@ export const useTapEditor = ({ currentPath, setRebuildList }: UseTapEditorArgs) 
                 const tap = {
                     type: "tap",
                     audio_id: Number(values.audio_id) || 0,
-                    filepath: values.filepath,
+                    filepath: values.filepath || builtTafPath(dir, fileName),
                     name: values.name,
                     files: (values.files ?? []).map((f: any) => ({
                         filepath: f.filepath,

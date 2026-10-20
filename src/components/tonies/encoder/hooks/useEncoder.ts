@@ -23,11 +23,20 @@ import {
 } from "../../../../utils/audio/wasmEncoder";
 import { useDirectoryTree } from "../../common/hooks/useDirectoryTree";
 import { splitTafToPlaylist } from "../../../../utils/playlist/tapApi";
+import { CoverInfo, languageOf, saveCoverModel, TafHeader, trackTitle } from "../utils/coverModel";
+import {
+    Encoder,
+    hasTapBuild,
+    PartsStep,
+    uploadInParts,
+} from "../../../../utils/audio/partsUpload";
 
 const api = new TeddyCloudApi(defaultAPIConfig());
 
+const noCover: CoverInfo = { cover: null, series: "", episodes: "" };
+
 export const useEncoder = () => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { addNotification, addLoadingNotification, closeLoadingNotification } = useTeddyCloud();
 
     const [debugPCMObjects, setDebugPCMObjects] = useState(false);
@@ -48,6 +57,9 @@ export const useEncoder = () => {
     const [rebuildList, setRebuildList] = useState<boolean>(false);
 
     const [hasInvalidChars, setHasInvalidChars] = useState(false);
+
+    const [coverEnabled, setCoverEnabled] = useState(false);
+    const [coverInfo, setCoverInfo] = useState<CoverInfo>(noCover);
 
     const inputRef = useRef<InputRef>(null);
 
@@ -263,6 +275,45 @@ export const useEncoder = () => {
     };
 
     // -------------------------------------------------
+    // Cover and custom model of the new TAF
+    // -------------------------------------------------
+
+    /** after a successful encoding: the custom model with the cover, if wanted */
+    const saveCover = async (
+        dir: string,
+        files: MyUploadFile[],
+        tafName = tafFilename + ".taf",
+        known?: TafHeader,
+    ) => {
+        if (!coverEnabled) return;
+        try {
+            const model = await saveCoverModel(
+                dir,
+                tafName,
+                { ...coverInfo, series: coverInfo.series.trim() || tafFilename },
+                files.map((f) => trackTitle(f.name)),
+                languageOf(i18n.language),
+                "library",
+                known,
+            );
+            addNotification(
+                NotificationTypeEnum.Success,
+                t("tonies.encoder.cover.saved"),
+                t("tonies.encoder.cover.savedDetails", { file: tafName, model }),
+                t("tonies.title"),
+            );
+        } catch (err) {
+            addNotification(
+                NotificationTypeEnum.Error,
+                t("tonies.encoder.cover.failed"),
+                t("tonies.encoder.cover.failedDetails", { file: tafName }) + String(err),
+                t("tonies.title"),
+            );
+        }
+        setCoverInfo(noCover);
+    };
+
+    // -------------------------------------------------
     // CreateDirectoryModal-Handling
     // -------------------------------------------------
 
@@ -290,7 +341,105 @@ export const useEncoder = () => {
     // Server-side Upload
     // -------------------------------------------------
 
+    // -------------------------------------------------
+    // Several files: encoded one by one in parallel, joined by the server
+    // -------------------------------------------------
+
+    const stepText = (step: PartsStep) => {
+        switch (step.kind) {
+            case "encoding":
+                return t("tonies.encoder.parts.encoding", { done: step.done, total: step.total });
+            case "uploading":
+                return t("tonies.encoder.parts.uploading", { done: step.done, total: step.total });
+            case "serverEncoding":
+                return t("tonies.encoder.parts.serverEncoding", {
+                    done: step.done,
+                    total: step.total,
+                });
+            default:
+                return t("tonies.encoder.parts.joining");
+        }
+    };
+
+    /** the fast way for several files; false when the server cannot join TAFs (then the old way) */
+    const uploadParts = async (encoder: Encoder) => {
+        if (fileList.length < 2 || !(await hasTapBuild())) return false;
+        const files = fileList;
+        const name = tafFilename;
+        const key = "encoding-" + name + ".taf";
+        setUploading(true);
+        setProcessing(true);
+        const job = {
+            files: files.map((f) => f.file as File),
+            // "01 - Intro.mp3" -> "Intro": the parts are numbered anyway
+            titles: files.map((f) => trackTitle(f.name)),
+            name,
+            folder: getPathFromNodeId(treeNodeId),
+            playlist: splitIntoPlaylist,
+            encoder,
+            bitrate,
+        };
+        const step = (s: PartsStep, fraction: number) =>
+            addLoadingNotification(
+                key,
+                t("tonies.encoder.processing"),
+                `${stepText(s)} (${Math.round(fraction * 100)} %)`,
+            );
+        try {
+            let result;
+            try {
+                result = await uploadInParts(job, step);
+            } catch (err) {
+                if (encoder === "server") throw err;
+                // the browser could not encode (old browser, no memory): the server does it
+                addNotification(
+                    NotificationTypeEnum.Info,
+                    t("tonies.encoder.parts.browserFailed"),
+                    String(err),
+                    t("tonies.title"),
+                );
+                result = await uploadInParts({ ...job, encoder: "server" }, step);
+            }
+            await saveCover(
+                result.folder,
+                files,
+                result.tafName,
+                result.header && {
+                    ...result.header,
+                    alsoAudioIds: result.tapAudioId ? [result.tapAudioId] : [],
+                },
+            );
+            closeLoadingNotification(key);
+            addNotification(
+                NotificationTypeEnum.Success,
+                t("tonies.encoder.uploadSuccessful"),
+                splitIntoPlaylist
+                    ? t("tonies.encoder.parts.playlistCreated", {
+                          file: result.source,
+                          count: files.length,
+                      })
+                    : t("tonies.encoder.uploadSuccessfulDetails", { file: name + ".taf" }),
+                t("tonies.title"),
+            );
+            setFileList([]);
+            setTafFilename("");
+        } catch (err) {
+            closeLoadingNotification(key);
+            addNotification(
+                NotificationTypeEnum.Error,
+                t("tonies.encoder.uploadFailed"),
+                t("tonies.encoder.uploadFailedDetails") + err,
+                t("tonies.title"),
+            );
+        } finally {
+            setProcessing(false);
+            setUploading(false);
+        }
+        return true;
+    };
+
     const handleUpload = async () => {
+        if (await uploadParts("server")) return;
         setUploading(true);
         const formData = new FormData();
         const key = "encoding-" + tafFilename + ".taf";
@@ -349,6 +498,8 @@ export const useEncoder = () => {
                 formData,
             );
             if (response.ok) {
+                // before a split moves the TAF into its folder
+                await saveCover(queryParams.path, fileList);
                 await finishUpload(key, tafFilename + ".taf", fileTitles(fileList));
                 setFileList([]);
                 setTafFilename("");
@@ -380,6 +531,7 @@ export const useEncoder = () => {
     // -------------------------------------------------
 
     const handleWasmUpload = async () => {
+        if (await uploadParts("browser")) return;
         setUploading(true);
         setProcessing(true);
         const key = "encoding-" + tafFilename + ".taf";
@@ -440,6 +592,8 @@ export const useEncoder = () => {
                 formData,
             );
             if (response.ok) {
+                // before a split moves the TAF into its folder
+                await saveCover(queryParams.path, fileList);
                 await finishUpload(key, tafFilename + ".taf", fileTitles(fileList));
                 setFileList([]);
                 setTafFilename("");
@@ -476,6 +630,8 @@ export const useEncoder = () => {
         splitIntoPlaylist,
         useFrontendEncoding,
         useFrontendEncodingSetting,
+        coverEnabled,
+        coverInfo,
         isCreateDirectoryModalOpen,
         createDirectoryPath,
         inputRef,
@@ -483,6 +639,8 @@ export const useEncoder = () => {
         // Actions
         setSplitIntoPlaylist,
         setUseFrontendEncoding,
+        setCoverEnabled,
+        setCoverInfo,
         sortFileListAlphabeticallyLiteral,
         sortFileListAlphabeticallyNatural,
         clearFileList,

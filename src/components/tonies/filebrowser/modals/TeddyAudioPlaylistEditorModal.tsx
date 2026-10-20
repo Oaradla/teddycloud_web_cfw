@@ -386,14 +386,9 @@ const TeddyAudioPlaylistEditor: React.FC<TeddyAudioPlaylistEditorProps> = ({
                 onOk={async () => {
                     if (isInitializing) return;
 
-                    if (!tafBaseName.trim()) {
-                        form.setFields([
-                            { name: "filepath", errors: [t("tonies.tapEditor.filePathRequired")] },
-                        ]);
-                        return;
-                    }
-
-                    computeAndSetFilepath();
+                    // without a name the playlist builds "<playlist>.tap.taf" next to itself
+                    if (tafBaseName.trim()) computeAndSetFilepath();
+                    else form.setFieldsValue({ filepath: "" });
 
                     await form.validateFields();
                     onCreate(form.getFieldsValue() as TAPFormValues);
@@ -426,9 +421,7 @@ const TeddyAudioPlaylistEditor: React.FC<TeddyAudioPlaylistEditorProps> = ({
                                 {
                                     validator: async (_, value) => {
                                         const fp = (value ?? "").toString().trim();
-                                        if (!fp)
-                                            throw new Error(t("tonies.tapEditor.filePathRequired"));
-                                        if (!fp.toLowerCase().endsWith(".taf"))
+                                        if (fp && !fp.toLowerCase().endsWith(".taf"))
                                             throw new Error(t("tonies.tapEditor.filePathRequired"));
                                     },
                                 },
@@ -453,11 +446,9 @@ const TeddyAudioPlaylistEditor: React.FC<TeddyAudioPlaylistEditorProps> = ({
                             }
                             help={
                                 !tafBaseName.trim()
-                                    ? t("tonies.tapEditor.filePathRequired")
+                                    ? t("tonies.tapEditor.filePathDefault")
                                     : undefined
                             }
-                            validateStatus={!tafBaseName.trim() ? "error" : undefined}
-                            required
                         >
                             <div style={{ display: "flex" }}>
                                 <DirectoryTreeSelect

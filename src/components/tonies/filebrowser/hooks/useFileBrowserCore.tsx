@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Breadcrumb, Empty, InputRef } from "antd";
+import { SortOrder } from "antd/es/table/interface";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { Record } from "../../../../types/fileBrowserTypes";
@@ -52,7 +53,7 @@ interface UseFileBrowserCoreResult {
     buildContentUrl: (fileName: string, options?: { ogg?: boolean }) => string;
 
     defaultSorter: (a: any, b: any, dataIndex: string | string[]) => number;
-    dirNameSorter: (a: any, b: any) => number;
+    dirNameSorter: (a: any, b: any, order?: SortOrder) => number;
 
     noData: React.ReactNode | null;
     parentRef: React.RefObject<HTMLDivElement | null>;
@@ -393,11 +394,13 @@ export const useFileBrowserCore = ({
         return 0;
     };
 
-    const dirNameSorter = (a: any, b: any) => {
-        if (a?.name === "..") return -1;
-        if (b?.name === "..") return 1;
-        if (a.isDir === b.isDir) return defaultSorter(a, b, "name");
-        return a.isDir ? -1 : 1;
+    // "..", then playlists, then folders, then the other files; that order stays when sorted descending
+    const sortRank = (x: any) =>
+        x?.name === ".." ? 0 : !x?.isDir && /\.tap$/i.test(x?.name ?? "") ? 1 : x?.isDir ? 2 : 3;
+    const dirNameSorter = (a: any, b: any, order?: SortOrder) => {
+        const rank = sortRank(a) - sortRank(b);
+        if (rank !== 0) return order === "descend" ? -rank : rank;
+        return defaultSorter(a, b, "name");
     };
 
     const buildDirPath = (dirPath: string): string => {

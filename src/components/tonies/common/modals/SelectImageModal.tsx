@@ -23,6 +23,7 @@ import {
 import CustomImagesPanel from "./selectImage/CustomImagesPanel";
 import OriginalImagesPanel from "./selectImage/OriginalImagesPanel";
 import { useOriginalImagesData } from "./selectImage/useOriginalImagesData";
+import { shrinkImage } from "../../../../utils/images/shrinkImage";
 
 const api = new TeddyCloudApi(defaultAPIConfig());
 const { useToken } = theme;
@@ -191,7 +192,9 @@ export const SelectImageModal: React.FC<SelectImageModalProps> = ({
     };
 
     const handleUploadRequest = async (options: any) => {
-        const { file, onSuccess, onError } = options;
+        const { onSuccess, onError } = options;
+        // big photos are scaled down (and become WebP) before they go to teddyCloud
+        const file: File = await shrinkImage(options.file).catch(() => options.file);
         const key = "upload-img-" + Date.now();
         addLoadingNotification(
             key,

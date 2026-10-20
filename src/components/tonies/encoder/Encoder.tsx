@@ -23,6 +23,7 @@ import { useDirectoryCreate } from "../common/hooks/useCreateDirectory";
 import { DirectoryTreeSelect } from "../common/elements/DirectoryTreeSelect";
 import CreateDirectoryModal from "../common/modals/CreateDirectoryModal";
 import { canHover } from "../../../utils/browser/browserUtils";
+import { CoverInfoFields } from "./CoverInfoFields";
 
 const { useToken } = theme;
 
@@ -39,10 +40,14 @@ export const Encoder: React.FC = () => {
         splitIntoPlaylist,
         useFrontendEncoding,
         useFrontendEncodingSetting,
+        coverEnabled,
+        coverInfo,
 
         // Actions
         setSplitIntoPlaylist,
         setUseFrontendEncoding,
+        setCoverEnabled,
+        setCoverInfo,
         sortFileListAlphabeticallyLiteral,
         sortFileListAlphabeticallyNatural,
         clearFileList,
@@ -248,6 +253,14 @@ export const Encoder: React.FC = () => {
                                         })}
                                     </div>
                                 ) : null}
+                                <CoverInfoFields
+                                    enabled={coverEnabled}
+                                    onEnabledChange={setCoverEnabled}
+                                    value={coverInfo}
+                                    onChange={setCoverInfo}
+                                    defaultSeries={tafFilename}
+                                    disabled={uploading || processing}
+                                />
                                 <div
                                     style={{
                                         display: "flex",

@@ -171,6 +171,8 @@ export interface CfwImage {
     pageLabel?: string;
     /** the firmware the page needs at least (its cfw-page-requires), "" when it names none */
     pageRequires?: string;
+    /** the release package is kept with this CC3200 image (preloader, card tree) */
+    package?: boolean;
 }
 
 /** teddyCloud's patches of an original ESP32 image on upload; empty or 0: none */
@@ -296,6 +298,26 @@ export const cfwApi = {
     downloadGithub: (tag: string) => postJson("/api/cfw/firmware/githubDownload", { tag }),
     deliver: (boxId: string, build: number, now: boolean) =>
         postJson(`/api/cfw/deliver?overlay=${enc(boxId)}`, { build, now }),
+    /** the name or address under which the boxes reach this server (Host header of the last box request; empty if none yet) */
+    boxHost: () => getJson<{ host: string; apiPort: number }>("/api/cfw/boxHost"),
+    /** the release package kept with a CC3200 image, for setting up a box in the browser */
+    package: async (build: number): Promise<Uint8Array> => {
+        const response = await api.apiGetTeddyCloudApiRaw(
+            `/api/cfw/firmware/package?build=${build}`,
+        );
+        return new Uint8Array(await response.arrayBuffer());
+    },
+    /** this teddyCloud's CA as the replacement the box checks the server with (c2.der) */
+    caReplacement: async (): Promise<Uint8Array> => {
+        const response = await api.apiGetTeddyCloudApiRaw("/api/getFile/c2.der");
+        return new Uint8Array(await response.arrayBuffer());
+    },
+    /** the certificates of a box teddyCloud does not know yet, under its MAC (and as the defaults where there are none) */
+    uploadCertsByMac: async (mac: string, files: { name: string; data: Uint8Array }[]) => {
+        const formData = new FormData();
+        for (const f of files) formData.append("filename", new Blob([f.data as BlobPart]), f.name);
+        await api.apiPostTeddyCloudFormDataRaw(`/api/uploadCert?mac=${enc(mac)}`, formData);
+    },
     /** the box checks for an update at once; the assignment stays as it is */
     checkNow: (boxId: string) => postJson(`/api/cfw/deliver?overlay=${enc(boxId)}`, { now: true }),
     /** a setting, of the box when boxId is given, written to the config at once */

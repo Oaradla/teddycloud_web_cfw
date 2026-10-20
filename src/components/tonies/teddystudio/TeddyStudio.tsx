@@ -1,6 +1,14 @@
 import React, { useState } from "react";
 import { Alert, Button, Collapse, Divider, Typography } from "antd";
-import { ClearOutlined, PrinterOutlined, UnorderedListOutlined } from "@ant-design/icons";
+import {
+    ClearOutlined,
+    FolderAddOutlined,
+    PrinterOutlined,
+    ScissorOutlined,
+    UnorderedListOutlined,
+    UserAddOutlined,
+} from "@ant-design/icons";
+import JSZip from "jszip";
 import { useTranslation } from "react-i18next";
 
 import { useTeddyCloud } from "../../../provider/TeddyCloudProvider";
@@ -17,6 +25,18 @@ import { CustomImages } from "./input/CustomImages";
 import { EditLabelModal } from "./modals/EditLabelModal";
 import { LabelOverridesById, LabelOverrides } from "./types/labelOverrides";
 import SelectImageModal from "../common/modals/SelectImageModal";
+import { AddFolderModal } from "./input/AddFolderModal";
+import { folderTonieInfos, freshDatasets, myTonieInfos } from "./input/addFromTeddyCloud";
+import { cutFiles } from "./utils/cutSvg";
+
+/** offers a file for download */
+const download = (blob: Blob, name: string) => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    window.setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+};
 
 const { Paragraph } = Typography;
 
@@ -40,6 +60,8 @@ export const TeddyStudio: React.FC = () => {
     } = useCustomItems();
     const [imageManagerOpen, setImageManagerOpen] = useState(false);
     const [bulkAddOpen, setBulkAddOpen] = useState(false);
+    const [addFolderOpen, setAddFolderOpen] = useState(false);
+    const [addingMine, setAddingMine] = useState(false);
 
     const settingsStore = useSettings();
 
@@ -138,6 +160,59 @@ export const TeddyStudio: React.FC = () => {
             : `${settings.width} x ${settings.height}`
     }`;
 
+    /** adds the tonies not on the sheet yet and says how many */
+    const addInfos = (infos: Parameters<typeof freshDatasets>[0]) => {
+        const fresh = freshDatasets(infos, mergedResults);
+        addResults(fresh);
+        addNotification(
+            fresh.length ? NotificationTypeEnum.Success : NotificationTypeEnum.Info,
+            t("tonies.teddystudio.added", { count: fresh.length }),
+            t("tonies.teddystudio.added", { count: fresh.length }),
+            t("tonies.teddystudio.navigationTitle"),
+        );
+    };
+
+    const addFailed = (error: unknown) =>
+        addNotification(
+            NotificationTypeEnum.Error,
+            t("tonies.teddystudio.addFailed"),
+            String(error),
+            t("tonies.teddystudio.navigationTitle"),
+        );
+
+    const handleAddMine = async () => {
+        setAddingMine(true);
+        try {
+            addInfos(await myTonieInfos());
+        } catch (error) {
+            addFailed(error);
+        } finally {
+            setAddingMine(false);
+        }
+    };
+
+    const handleAddFolder = async (path: string) => {
+        try {
+            addInfos(await folderTonieInfos(path));
+        } catch (error) {
+            addFailed(error);
+        }
+    };
+
+    /** the cut lines of the sheets for a laser cutter: one SVG, or a zip with full sheet and rest */
+    const handleCutLines = async () => {
+        const files = cutFiles(settings, mergedResults.length);
+        const names = Object.keys(files);
+        if (names.length === 1) {
+            download(new Blob([files[names[0]]], { type: "image/svg+xml" }), names[0]);
+            return;
+        }
+        const zip = new JSZip();
+        for (const name of names) zip.file(name, files[name]);
+        const blob = await zip.generateAsync({ type: "blob" });
+        download(blob, names[0].replace(/-full-.*$/, ".zip"));
+    };
+
     const printModeSummary = t(
         `tonies.teddystudio.printMode${settings.printMode.charAt(0).toUpperCase() + settings.printMode.slice(1)}`,
     );
@@ -175,11 +250,26 @@ export const TeddyStudio: React.FC = () => {
                         {t("tonies.teddystudio.bulkAdd.button")}
                     </Button>
                 </div>
+                <div style={{ marginTop: 8 }}>
+                    <Button icon={<UserAddOutlined />} loading={addingMine} onClick={handleAddMine}>
+                        {t("tonies.teddystudio.addMine")}
+                    </Button>
+                </div>
+                <div style={{ marginTop: 8 }}>
+                    <Button icon={<FolderAddOutlined />} onClick={() => setAddFolderOpen(true)}>
+                        {t("tonies.teddystudio.addFolder.button")}
+                    </Button>
+                </div>
             </div>
             <BulkAddToniesModal
                 open={bulkAddOpen}
                 onClose={() => setBulkAddOpen(false)}
                 onConfirm={(datasets) => addResults(datasets)}
+            />
+            <AddFolderModal
+                open={addFolderOpen}
+                onClose={() => setAddFolderOpen(false)}
+                onConfirm={handleAddFolder}
             />
             <CustomImages
                 customItems={customItems}
@@ -242,6 +332,9 @@ export const TeddyStudio: React.FC = () => {
                             }}
                         >
                             {t("tonies.teddystudio.clear")}
+                        </Button>
+                        <Button icon={<ScissorOutlined />} onClick={handleCutLines}>
+                            {t("tonies.teddystudio.cutLines")}
                         </Button>
                         <Button
                             type="primary"

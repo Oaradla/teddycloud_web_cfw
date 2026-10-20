@@ -24,6 +24,8 @@ import { useSelectFiles } from "../hooks/useSelectFiles";
 import { ffmpegSupportedExtensions } from "../../../../utils/files/ffmpegSupportedExtensions";
 import { MAX_FILES } from "../../../../constants/numbers";
 import { canHover } from "../../../../utils/browser/browserUtils";
+import { CoverInfoFields } from "../../encoder/CoverInfoFields";
+import { CoverInfo, languageOf, saveCoverModel, trackTitle } from "../../encoder/utils/coverModel";
 
 const api = new TeddyCloudApi(defaultAPIConfig());
 
@@ -56,7 +58,7 @@ const EncodeFilesModal: React.FC<EncodeFilesModalProps> = ({
     setRebuildList,
     setSelectedRowKeys,
 }) => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { token } = useToken();
     const { addNotification, addLoadingNotification, closeLoadingNotification } = useTeddyCloud();
 
@@ -66,6 +68,13 @@ const EncodeFilesModal: React.FC<EncodeFilesModalProps> = ({
     const [hasInvalidChars, setHasInvalidChars] = useState<boolean>(false);
     const [hasError, setHasError] = useState<boolean>(true);
     const [isUnchangedOrEmpty, setIsUnchangedOrEmpty] = useState<boolean>(true);
+    const [tafName, setTafName] = useState("");
+    const [coverEnabled, setCoverEnabled] = useState(false);
+    const [coverInfo, setCoverInfo] = useState<CoverInfo>({
+        cover: null,
+        series: "",
+        episodes: "",
+    });
 
     const sensor = useSensor(PointerSensor, {
         activationConstraint: { distance: 10 },
@@ -110,6 +119,9 @@ const EncodeFilesModal: React.FC<EncodeFilesModalProps> = ({
             setHasInvalidChars(false);
             setHasError(true);
             setIsUnchangedOrEmpty(true);
+            setTafName("");
+            setCoverEnabled(false);
+            setCoverInfo({ cover: null, series: "", episodes: "" });
 
             setTimeout(() => {
                 inputEncodeTafFileNameRef.current?.focus();
@@ -124,6 +136,7 @@ const EncodeFilesModal: React.FC<EncodeFilesModalProps> = ({
         setHasInvalidChars(inputInvalid);
         setHasError(errorDetected);
         setIsUnchangedOrEmpty(value === "");
+        setTafName(value);
     };
 
     const onDragEnd = ({ active, over }: DragEndEvent) => {
@@ -178,6 +191,31 @@ const EncodeFilesModal: React.FC<EncodeFilesModalProps> = ({
             );
             if (response.ok) {
                 closeLoadingNotification(key);
+                if (coverEnabled) {
+                    try {
+                        const model = await saveCoverModel(
+                            basePath,
+                            newTafFilename + ".taf",
+                            { ...coverInfo, series: coverInfo.series.trim() || newTafFilename },
+                            encodeFileList.map((f) => trackTitle(f.name)),
+                            languageOf(i18n.language),
+                            special,
+                        );
+                        addNotification(
+                            NotificationTypeEnum.Success,
+                            t("tonies.encoder.cover.saved"),
+                            t("tonies.encoder.cover.savedDetails", { file: target, model }),
+                            t("fileBrowser.title"),
+                        );
+                    } catch (err) {
+                        addNotification(
+                            NotificationTypeEnum.Error,
+                            t("tonies.encoder.cover.failed"),
+                            t("tonies.encoder.cover.failedDetails", { file: target }) + String(err),
+                            t("fileBrowser.title"),
+                        );
+                    }
+                }
                 addNotification(
                     NotificationTypeEnum.Success,
                     t("fileBrowser.encodeFiles.encodingSuccessful"),
@@ -336,6 +374,16 @@ const EncodeFilesModal: React.FC<EncodeFilesModalProps> = ({
                                         })}
                                     </div>
                                 ) : null}
+                                {special === "library" && (
+                                    <CoverInfoFields
+                                        enabled={coverEnabled}
+                                        onEnabledChange={setCoverEnabled}
+                                        value={coverInfo}
+                                        onChange={setCoverInfo}
+                                        defaultSeries={tafName}
+                                        disabled={processing}
+                                    />
+                                )}
                             </Space>
                         </div>
                     </>

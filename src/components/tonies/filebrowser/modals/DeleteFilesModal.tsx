@@ -165,6 +165,12 @@ const DeleteFilesModal: React.FC<DeleteFilesModalProps> = ({
         onCloseMultiple();
     };
 
+    // a folder goes with everything in it: say so
+    const isFolder = (name: string | null) =>
+        !!name &&
+        files.some((f) => (f.name === name || ("fullPath" in f && f.fullPath === name)) && f.isDir);
+    const foldersSelected = selectedRowKeys.some((key) => isFolder(key.toString()));
+
     return (
         <>
             <ConfirmationDialog
@@ -172,7 +178,11 @@ const DeleteFilesModal: React.FC<DeleteFilesModalProps> = ({
                 open={singleOpen}
                 okText={t("fileBrowser.delete")}
                 cancelText={t("fileBrowser.cancel")}
-                content={t("fileBrowser.confirmDeleteDialog", { fileToDelete })}
+                content={
+                    isFolder(fileToDelete)
+                        ? t("fileBrowser.confirmDeleteFolderDialog", { fileToDelete })
+                        : t("fileBrowser.confirmDeleteDialog", { fileToDelete })
+                }
                 handleOk={handleConfirmSingleDelete}
                 handleCancel={handleCancelDelete}
             />
@@ -181,7 +191,10 @@ const DeleteFilesModal: React.FC<DeleteFilesModalProps> = ({
                 open={multipleOpen}
                 okText={t("fileBrowser.delete")}
                 cancelText={t("fileBrowser.cancel")}
-                content={t("fileBrowser.confirmMultipleDeleteDialog")}
+                content={
+                    t("fileBrowser.confirmMultipleDeleteDialog") +
+                    (foldersSelected ? " " + t("fileBrowser.confirmDeleteFoldersNote") : "")
+                }
                 contentDetails={
                     <ul style={{ maxHeight: "calc(1.5em * 5)", overflowY: "auto" }}>
                         {selectedRowKeys.map((key, index) => (

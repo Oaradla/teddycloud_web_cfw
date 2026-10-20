@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Divider, Steps, Typography } from "antd";
+import { useSearchParams } from "react-router-dom";
+import { Alert, Button, Divider, Radio, Steps, Typography } from "antd";
 import {
     CheckSquareOutlined,
     CodeOutlined,
@@ -21,15 +22,28 @@ import { Step3Patches } from "./steps/Step3Patches";
 import { Step4ApplyingPatches } from "./steps/Step4ApplyingPatches";
 import AvailableBoxesModal from "../common/modals/AvailableBoxesModal";
 import { scrollToTop } from "../../../../utils/browser/browserUtils";
+import { CC3200BrowserSetup } from "./browser/CC3200BrowserSetup";
+import { CC3200SdCard } from "./browser/CC3200SdCard";
 
 const { Paragraph } = Typography;
 
 export type HwTool = "uart" | "esp32c3";
 
+/** in the browser over Web Serial, by hand with cc3200tool, or only the SD card content */
+type Way = "browser" | "manual" | "card";
+
 export const CC3200BoxFlashingGuide: React.FC = () => {
     const { t } = useTranslation();
     const scrollToTopAnchor = useRef<HTMLDivElement | null>(null);
 
+    const [searchParams] = useSearchParams();
+    const [way, setWay] = useState<Way>(
+        searchParams.get("way") === "card"
+            ? "card"
+            : searchParams.get("way") === "manual" || !("serial" in navigator)
+              ? "manual"
+              : "browser",
+    );
     const [currentStep, setCurrentStep] = useState(0);
     const [hostname, setHostname] = useState<string>("");
     const [warningTextHostname, setWarningTextHostname] = useState<string>("");
@@ -161,7 +175,36 @@ export const CC3200BoxFlashingGuide: React.FC = () => {
             <h1 ref={scrollToTopAnchor}>{t("tonieboxes.cc3200BoxFlashing.title")}</h1>
             <Divider>{t("tonieboxes.cc3200BoxFlashing.title")}</Divider>
 
-            <Paragraph>
+            <Radio.Group
+                value={way}
+                onChange={(e) => setWay(e.target.value)}
+                optionType="button"
+                buttonStyle="solid"
+                style={{ marginBottom: 24 }}
+                options={[
+                    {
+                        value: "browser",
+                        label: t("tonieboxes.cc3200BoxFlashing.browser.wayBrowser"),
+                    },
+                    { value: "manual", label: t("tonieboxes.cc3200BoxFlashing.browser.wayManual") },
+                    { value: "card", label: t("tonieboxes.cc3200BoxFlashing.browser.wayCard") },
+                ]}
+            />
+
+            {way === "browser" && <CC3200BrowserSetup onShowBoxes={showAvailableBoxesModal} />}
+            {way === "card" && (
+                <>
+                    <Paragraph>{t("tonieboxes.cc3200BoxFlashing.browser.cardOnlyText")}</Paragraph>
+                    <Alert
+                        type="warning"
+                        showIcon
+                        title={t("tonieboxes.cc3200BoxFlashing.browser.cardOnlyCfg")}
+                        style={{ marginBottom: 16 }}
+                    />
+                    <CC3200SdCard />
+                </>
+            )}
+            <Paragraph style={{ display: way === "manual" ? undefined : "none" }}>
                 <Steps
                     current={currentStep}
                     onChange={onStepChange}
