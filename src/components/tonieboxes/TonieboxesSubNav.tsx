@@ -32,7 +32,7 @@ export const TonieboxesSubNav = () => {
     }, [openKeys, currentLanguage]);
 
     const pluginItems = plugins
-        .filter((p) => p.teddyCloudSection === TeddyCloudSection.Tonieboxes)
+        .filter((p) => p.teddyCloudSection === TeddyCloudSection.Tonieboxes && !p.hideInNav)
         .map((plugin) => ({
             key: `plugin-${plugin.pluginId}`,
             label: (
@@ -311,7 +311,15 @@ export const TonieboxesSubNav = () => {
             openKeys={openKeys}
             selectedKeys={[]}
             onOpenChange={onOpenChange}
-            items={acl.admin ? subnav : restrictMenu(subnav, ["boxsetup", "boxupdate"], [])}
+            items={
+                acl.admin
+                    ? subnav
+                    : restrictMenu(
+                          subnav,
+                          acl.canUpdateBoxes ? ["boxsetup"] : ["boxsetup", "boxupdate"],
+                          [],
+                      )
+            }
             expandIcon={({ isOpen }) => customExpandIcon({ isOpen })}
         />
     );

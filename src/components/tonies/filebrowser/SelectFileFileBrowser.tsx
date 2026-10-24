@@ -7,6 +7,7 @@ import { Key } from "antd/es/table/interface";
 import { CloseOutlined } from "@ant-design/icons";
 
 import { Record } from "../../../types/fileBrowserTypes";
+import { DeepSearchToggle } from "./items/DeepSearchToggle";
 
 import { LoadingSpinnerAsOverlay } from "../../common/elements/LoadingSpinner";
 import TonieInformationModal from "../common/modals/TonieInformationModal";
@@ -47,6 +48,9 @@ const SelectFileFileBrowserComponent: React.FC<{
     onImagePreview?: (imageUrl: string) => void;
     /** Nur bei custom_img: Drop-Zone nur um Filter+Tabelle, nicht um die Button-Zeile. */
     customImgTableDropZone?: CustomImgTableDropZoneProps;
+    /** shows a delete action on the rows the predicate allows */
+    onDeleteFile?: (fileName: string, path: string) => void;
+    canDeleteFile?: (record: Record, path: string) => boolean;
 }> = ({
     special,
     initialPath = "",
@@ -64,6 +68,8 @@ const SelectFileFileBrowserComponent: React.FC<{
     onFileDoubleClick,
     onImagePreview,
     customImgTableDropZone,
+    onDeleteFile,
+    canDeleteFile,
 }) => {
     const { t } = useTranslation();
     const { playAudio } = useAudioContext();
@@ -98,6 +104,8 @@ const SelectFileFileBrowserComponent: React.FC<{
         clearFilterField,
         handleFilterFieldInputFocus,
         handleFilterFieldInputBlur,
+        deepSearch,
+        setDeepSearch,
         inputFilterRef,
         generateBreadcrumbs,
         buildDirPath,
@@ -295,6 +303,10 @@ const SelectFileFileBrowserComponent: React.FC<{
         onImagePreviewClick: special === "custom_img" ? openImagePreview : undefined,
         onRowSelect: handleRowSelect,
         compactSelectHasVisibleSelectionColumn,
+        showDeleteConfirmDialog: onDeleteFile
+            ? (fileName: string) => onDeleteFile(fileName, path)
+            : undefined,
+        canDelete: canDeleteFile ? (record) => canDeleteFile(record, path) : undefined,
     });
 
     const filterInTableHeaderComponents = {
@@ -315,6 +327,12 @@ const SelectFileFileBrowserComponent: React.FC<{
                                     placeholder={t("fileBrowser.filter")}
                                     value={filterInputText}
                                     onChange={handleFilterChange}
+                                    addonAfter={
+                                        <DeepSearchToggle
+                                            value={deepSearch}
+                                            onChange={setDeepSearch}
+                                        />
+                                    }
                                     onFocus={handleFilterFieldInputFocus}
                                     onBlur={handleFilterFieldInputBlur}
                                     ref={inputFilterRef}
@@ -526,6 +544,9 @@ const SelectFileFileBrowserComponent: React.FC<{
                                 placeholder={t("fileBrowser.filter")}
                                 value={filterInputText}
                                 onChange={handleFilterChange}
+                                addonAfter={
+                                    <DeepSearchToggle value={deepSearch} onChange={setDeepSearch} />
+                                }
                                 onFocus={handleFilterFieldInputFocus}
                                 onBlur={handleFilterFieldInputBlur}
                                 ref={inputFilterRef}

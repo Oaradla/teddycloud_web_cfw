@@ -5,7 +5,8 @@ export type CfwScope = "figure" | "global";
 /** which modes an action uses: all four, set/remove (values set with the ears), or none */
 export type CfwModeSet = "all" | "earsSet" | "none";
 
-export type CfwValueKind = "none" | "minutes" | "minutesOnce" | "volumeStart" | "ledStart";
+export type CfwValueKind =
+    "none" | "minutes" | "minutesOnce" | "idleMinutes" | "volumeStart" | "ledStart";
 
 export interface CfwActionDef {
     action: number;
@@ -44,6 +45,8 @@ export const CFW_ACTIONS: CfwActionDef[] = [
     { action: 14, key: "tiltLockGlobal", scope: "global", modes: "all", value: "none" },
     { action: 15, key: "volumeLockGlobal", scope: "global", modes: "all", value: "none" },
     { action: 16, key: "bothEarsOff", scope: "global", modes: "all", value: "none" },
+    { action: 17, key: "idleOffBattery", scope: "global", modes: "none", value: "idleMinutes" },
+    { action: 18, key: "idleOffStation", scope: "global", modes: "none", value: "idleMinutes" },
 ];
 
 export const actionDef = (action: number) => CFW_ACTIONS.find((a) => a.action === action);
@@ -57,6 +60,7 @@ export const defaultValue = (def: CfwActionDef): number => {
     switch (def.value) {
         case "minutes":
         case "minutesOnce":
+        case "idleMinutes":
             return 30;
         case "volumeStart":
             return 0; // the step in effect

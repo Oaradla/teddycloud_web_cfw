@@ -16,12 +16,16 @@ export type CustomModelListProps = {
     modelListTotalPages: number;
     gridColumns: number;
     token: ReturnType<typeof theme.useToken>["token"];
+    canCreate: boolean;
+    mayDelete: (entry: CustomEntry) => boolean;
+    /** the delete confirm offers to delete the entry's picture too */
+    offerPictureDelete: (entry: CustomEntry) => boolean;
     onMergeAndCreateNew: () => void;
     /** Model of the original tonie the entry takes precedence over, if any. */
     getOverriddenModel: (entry: CustomEntry) => string | undefined;
     onEdit: (idx: number) => void;
     onDuplicate: (idx: number) => void;
-    onDelete: (idx: number) => void;
+    onDelete: (idx: number, pictures: boolean) => void;
     onPreviewClick: (url: string) => void;
     onShowAll: () => void;
     onShowPagination: () => void;
@@ -38,6 +42,9 @@ export const CustomModelList: React.FC<CustomModelListProps> = ({
     modelListTotalPages,
     gridColumns,
     token,
+    canCreate,
+    mayDelete,
+    offerPictureDelete,
     onMergeAndCreateNew,
     getOverriddenModel,
     onEdit,
@@ -90,14 +97,18 @@ export const CustomModelList: React.FC<CustomModelListProps> = ({
                     gap: 8,
                 }}
             >
-                <Button
-                    type="primary"
-                    size="small"
-                    icon={<PlusOutlined />}
-                    onClick={onMergeAndCreateNew}
-                >
-                    {t("tonies.customEditor.actions.newModel")}
-                </Button>
+                {canCreate ? (
+                    <Button
+                        type="primary"
+                        size="small"
+                        icon={<PlusOutlined />}
+                        onClick={onMergeAndCreateNew}
+                    >
+                        {t("tonies.customEditor.actions.newModel")}
+                    </Button>
+                ) : (
+                    <span />
+                )}
                 {listPagination}
             </div>
 
@@ -137,8 +148,9 @@ export const CustomModelList: React.FC<CustomModelListProps> = ({
                                 gridColumns={gridColumns}
                                 overriddenModel={getOverriddenModel(row.entry)}
                                 onEdit={onEdit}
-                                onDuplicate={onDuplicate}
-                                onDelete={onDelete}
+                                onDuplicate={canCreate ? onDuplicate : undefined}
+                                onDelete={mayDelete(row.entry) ? onDelete : undefined}
+                                offerPictureDelete={offerPictureDelete(row.entry)}
                                 onPreviewClick={onPreviewClick}
                             />
                         ))}

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type Key } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, Flex, Input, Tag, Tree, Typography } from "antd";
 import type { DataNode } from "antd/es/tree";
+import { boxSettingScope } from "../../cfw/cfwSettingsVisibility";
 
 import {
     leaves,
@@ -47,10 +48,19 @@ export const RightsTreeEditor = ({
                 return t(`settings.webAuth.tree.scopes.${node.label}`, node.label);
             case "settings":
                 return t("settings.webAuth.tree.settings");
-            case "group":
-                return node.label;
-            case "setting":
-                return node.label;
+            case "group": {
+                /* of "core" a box has only the flex tonie */
+                const group = node.pattern.slice("box.setting:".length, -2);
+                return group === "core"
+                    ? t("settings.webAuth.tree.flexTonie")
+                    : t(`settings.groups.${group}`, node.label);
+            }
+            case "setting": {
+                const id = node.pattern.slice("box.setting:".length);
+                const name = t(`settings.options.${id.replace(/\./g, "_")}.label`, node.label);
+                const scope = boxSettingScope(id);
+                return scope ? `${name} · ${t(`settings.webAuth.tree.${scope}Boxes`)}` : name;
+            }
             default:
                 return t(`sharing.rights.${node.pattern}`, node.pattern);
         }

@@ -26,6 +26,13 @@ vi.mock("../../../config/defaultApiConfig", () => ({ defaultAPIConfig: vi.fn(() 
 vi.mock("../../../provider/TeddyCloudProvider", () => ({
     useTeddyCloud: () => ({ addNotification: notify, invalidateTonies: vi.fn() }),
 }));
+vi.mock("../../../provider/AclProvider", () => ({
+    useAcl: () => ({
+        refresh: vi.fn(),
+        canCreateModels: true,
+        mayChangeModel: () => true,
+    }),
+}));
 vi.mock("../common/modals/SelectImageModal", () => ({ default: () => null }));
 vi.mock("../common/modals/SelectAudioModal", () => ({ SelectAudioModal: () => null }));
 

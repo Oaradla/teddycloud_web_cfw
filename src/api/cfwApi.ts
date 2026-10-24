@@ -318,6 +318,16 @@ export const cfwApi = {
         for (const f of files) formData.append("filename", new Blob([f.data as BlobPart]), f.name);
         await api.apiPostTeddyCloudFormDataRaw(`/api/uploadCert?mac=${enc(mac)}`, formData);
     },
+    /** stores a flash dump in the server's firmware folder; the name of the stored file */
+    storeDump: async (name: string, data: Uint8Array) => {
+        const formData = new FormData();
+        formData.append(name, new Blob([data as BlobPart]), name);
+        const response = await api.apiPostTeddyCloudFormDataRaw(
+            "/api/esp32/uploadFirmware",
+            formData,
+        );
+        return response.text();
+    },
     /** the box checks for an update at once; the assignment stays as it is */
     checkNow: (boxId: string) => postJson(`/api/cfw/deliver?overlay=${enc(boxId)}`, { now: true }),
     /** a setting, of the box when boxId is given, written to the config at once */

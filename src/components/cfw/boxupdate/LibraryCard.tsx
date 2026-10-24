@@ -20,6 +20,7 @@ import { DeleteOutlined, FileTextOutlined, InboxOutlined } from "@ant-design/ico
 
 import {
     cfwApi,
+    CfwBox,
     CfwChannel,
     CfwEsp32Patch,
     CfwImage,
@@ -27,22 +28,28 @@ import {
     formatBuild,
     formatTime,
 } from "../../../api/cfwApi";
-import { CHANNEL_COLOR, CHANNELS, channelKey, imageLabel, platformOf } from "./channels";
+import { CHANNEL_COLOR, CHANNELS, channelKey, imageLabel, oldImages, platformOf } from "./channels";
 import { useNotify } from "./useNotify";
+import { cfwMessage } from "../cfwMessages";
 
 const { Text, Paragraph } = Typography;
 
 interface LibraryCardProps {
     images: CfwImage[];
+    /** undefined while unknown: no old images then */
+    boxes?: CfwBox[];
     defaultPage?: CfwPage;
     loading: boolean;
     onChanged: () => Promise<void>;
 }
 
+const imageKey = (image: CfwImage) => `${platformOf(image)}-${image.build}`;
+
 /** the firmware images: upload with a channel (the original ESP32 firmware with teddyCloud's patches), change
- * channel and notes, delete */
+ * channel and notes, delete one, several or the old ones */
 export const LibraryCard: React.FC<LibraryCardProps> = ({
     images,
+    boxes,
     defaultPage,
     loading,
     onChanged,
@@ -51,6 +58,49 @@ export const LibraryCard: React.FC<LibraryCardProps> = ({
     const notify = useNotify();
     const [uploadChannel, setUploadChannel] = useState<CfwChannel>("beta");
     const [patch, setPatch] = useState<CfwEsp32Patch>({});
+    const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([]);
+    const [deleting, setDeleting] = useState(false);
+    const selected = images.filter((image) => selectedKeys.includes(imageKey(image)));
+    const old = boxes ? oldImages(images, boxes) : [];
+
+    /** one after the other; the failed ones are named in the notification */
+    const deleteImages = async (list: CfwImage[]) => {
+        setDeleting(true);
+        const failed: string[] = [];
+        for (const image of list) {
+            const result = await cfwApi.deleteFirmware(image);
+            if (!result.ok)
+                failed.push(`${formatBuild(image.build)}: ${cfwMessage(t, result.message)}`);
+        }
+        notify(
+            { ok: failed.length === 0, message: failed.join("; ") },
+            t("cfw.update.deletedCount", { n: list.length }),
+            t("cfw.update.deleteFailed", { n: failed.length }),
+        );
+        setSelectedKeys([]);
+        setDeleting(false);
+        await onChanged();
+    };
+
+    const deleteButton = (list: CfwImage[], label: string) => (
+        <Popconfirm
+            title={t("cfw.update.deleteManyConfirm", { n: list.length })}
+            description={
+                <ul style={{ margin: 0, paddingLeft: 20, maxHeight: 240, overflow: "auto" }}>
+                    {list.map((image) => (
+                        <li key={imageKey(image)}>
+                            {imageLabel(image, t(`cfw.update.platformName.${platformOf(image)}`))}
+                        </li>
+                    ))}
+                </ul>
+            }
+            onConfirm={() => deleteImages(list)}
+        >
+            <Button icon={<DeleteOutlined />} danger loading={deleting}>
+                {label}
+            </Button>
+        </Popconfirm>
+    );
 
     const edit = async (image: CfwImage, change: { channel?: CfwChannel; notes?: string }) => {
         const result = await cfwApi.editFirmware(image, change);
@@ -329,8 +379,20 @@ export const LibraryCard: React.FC<LibraryCardProps> = ({
                       })
                     : t("cfw.update.noDefaultPage")}
             </Text>
+            {(selected.length > 0 || old.length > 0) && (
+                <Space wrap style={{ marginBottom: 8 }}>
+                    {selected.length > 0 &&
+                        deleteButton(
+                            selected,
+                            t("cfw.update.deleteSelected", { n: selected.length }),
+                        )}
+                    {old.length > 0 &&
+                        deleteButton(old, t("cfw.update.deleteOld", { n: old.length }))}
+                </Space>
+            )}
             <Table
-                rowKey={(image) => `${platformOf(image)}-${image.build}`}
+                rowKey={imageKey}
+                rowSelection={{ selectedRowKeys: selectedKeys, onChange: setSelectedKeys }}
                 size="small"
                 loading={loading}
                 columns={columns}

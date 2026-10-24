@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Card, Popconfirm, Tag, Tooltip, theme } from "antd";
+import { Card, Checkbox, Popconfirm, Tag, Tooltip, theme } from "antd";
 import { CopyOutlined, DeleteOutlined, EditOutlined } from "@ant-design/icons";
 import { toImageSrc, toPreviewableImageUrl } from "../common/utils/imagePathUtils";
 
@@ -18,8 +18,11 @@ export interface CustomModelCardProps {
     /** Model of the original tonie this entry takes precedence over, if any. */
     overriddenModel?: string;
     onEdit: (idx: number) => void;
-    onDuplicate: (idx: number) => void;
-    onDelete: (idx: number) => void;
+    /** without it the model cannot be duplicated (no right to add models) */
+    onDuplicate?: (idx: number) => void;
+    /** without it the model cannot be deleted */
+    onDelete?: (idx: number, pictures: boolean) => void;
+    offerPictureDelete?: boolean;
     onPreviewClick: (url: string) => void;
 }
 
@@ -31,10 +34,12 @@ export const CustomModelCard: React.FC<CustomModelCardProps> = ({
     onEdit,
     onDuplicate,
     onDelete,
+    offerPictureDelete = false,
     onPreviewClick,
 }) => {
     const { t } = useTranslation();
     const { token } = theme.useToken();
+    const [deletePicture, setDeletePicture] = useState(true);
     const previewUrl = toPreviewableImageUrl(entry.pic);
     return (
         <div
@@ -89,35 +94,54 @@ export const CustomModelCard: React.FC<CustomModelCardProps> = ({
                     >
                         <EditOutlined />
                     </span>,
-
-                    <span
-                        onClick={() => onDuplicate(idx)}
-                        style={{ cursor: "pointer" }}
-                        onKeyDown={(e) => e.key === "Enter" && onDuplicate(idx)}
-                        role="button"
-                        tabIndex={0}
-                    >
-                        <CopyOutlined />
-                    </span>,
-                    <Popconfirm
-                        key="del"
-                        title={t("tonies.customEditor.deleteConfirm.title")}
-                        description={t("tonies.customEditor.deleteConfirm.description", {
-                            model: entry.model,
-                        })}
-                        onConfirm={() => void onDelete(idx)}
-                        okText={t("tonies.customEditor.deleteConfirm.confirm")}
-                        cancelText={t("tonies.customEditor.deleteConfirm.abort")}
-                    >
+                    onDuplicate && (
                         <span
-                            style={{ cursor: "pointer", color: token.colorError }}
+                            onClick={() => onDuplicate(idx)}
+                            style={{ cursor: "pointer" }}
+                            onKeyDown={(e) => e.key === "Enter" && onDuplicate(idx)}
                             role="button"
                             tabIndex={0}
                         >
-                            <DeleteOutlined />
+                            <CopyOutlined />
                         </span>
-                    </Popconfirm>,
-                ]}
+                    ),
+                    onDelete && (
+                        <Popconfirm
+                            key="del"
+                            title={t("tonies.customEditor.deleteConfirm.title")}
+                            description={
+                                <>
+                                    <div>
+                                        {t("tonies.customEditor.deleteConfirm.description", {
+                                            model: entry.model,
+                                        })}
+                                    </div>
+                                    {offerPictureDelete && (
+                                        <Checkbox
+                                            checked={deletePicture}
+                                            onChange={(e) => setDeletePicture(e.target.checked)}
+                                        >
+                                            {t("tonies.customEditor.deleteConfirm.alsoPicture")}
+                                        </Checkbox>
+                                    )}
+                                </>
+                            }
+                            onConfirm={() =>
+                                void onDelete(idx, offerPictureDelete && deletePicture)
+                            }
+                            okText={t("tonies.customEditor.deleteConfirm.confirm")}
+                            cancelText={t("tonies.customEditor.deleteConfirm.abort")}
+                        >
+                            <span
+                                style={{ cursor: "pointer", color: token.colorError }}
+                                role="button"
+                                tabIndex={0}
+                            >
+                                <DeleteOutlined />
+                            </span>
+                        </Popconfirm>
+                    ),
+                ].filter(Boolean)}
             >
                 {(() => {
                     const metaTitle = (entry.episodes || "").trim() || undefined;

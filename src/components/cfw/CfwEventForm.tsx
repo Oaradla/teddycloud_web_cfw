@@ -52,6 +52,19 @@ export const CfwEventForm: React.FC<CfwEventFormProps> = ({ event, onChange }) =
                         suffix={t("cfw.minutes")}
                     />
                 );
+            case "idleMinutes":
+                return (
+                    <Space>
+                        <InputNumber
+                            min={0}
+                            max={65535}
+                            value={action.value}
+                            onChange={(value) => update(index, { value: value ?? 0 })}
+                            suffix={t("cfw.minutes")}
+                        />
+                        <Text type="secondary">{t("cfw.idleMinutesHint")}</Text>
+                    </Space>
+                );
             case "volumeStart":
                 return (
                     <Select

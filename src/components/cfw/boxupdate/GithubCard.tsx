@@ -21,6 +21,9 @@ import { useNotify } from "./useNotify";
 
 const { Text } = Typography;
 
+/** the newest releases; the older ones are a link away on GitHub */
+const SHOWN_RELEASES = 2;
+
 interface GithubCardProps {
     github: CfwFirmwareResponse["github"] | undefined;
     interval: number;
@@ -174,10 +177,21 @@ export const GithubCard: React.FC<GithubCardProps> = ({ github, interval, onChan
                         rowKey="tag"
                         size="small"
                         columns={columns}
-                        dataSource={github.releases}
+                        dataSource={github.releases.slice(0, SHOWN_RELEASES)}
                         pagination={false}
                         scroll={{ x: true }}
                     />
+                )}
+                {github && github.releases.length > SHOWN_RELEASES && (
+                    <a
+                        href={`https://github.com/${github.repo}/releases`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        {t("cfw.update.olderReleases", {
+                            n: github.releases.length - SHOWN_RELEASES,
+                        })}
+                    </a>
                 )}
             </Space>
         </Card>

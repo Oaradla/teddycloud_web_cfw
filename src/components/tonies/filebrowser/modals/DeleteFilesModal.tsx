@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { Checkbox } from "antd";
 import { Key } from "antd/es/table/interface";
 import { useTranslation } from "react-i18next";
 
@@ -56,6 +57,50 @@ const DeleteFilesModal: React.FC<DeleteFilesModalProps> = ({
 }) => {
     const { t } = useTranslation();
     const { addNotification, addLoadingNotification, closeLoadingNotification } = useTeddyCloud();
+    // custom tonies used only by what is deleted
+    const [orphans, setOrphans] = useState<string[]>([]);
+    const [deleteOrphans, setDeleteOrphans] = useState(true);
+    const modelsQuery = orphans.length > 0 && deleteOrphans ? "&models=1" : "";
+
+    const selectedFilePaths = () =>
+        selectedRowKeys.flatMap((rowName) => {
+            const file =
+                files.find((f) => f.name === rowName) ||
+                files.find((f) => "fullPath" in f && f.fullPath === rowName);
+            if (!file) return [];
+            return [
+                path
+                    ? decodeURIComponent(path) + "/" + file.name
+                    : "fullPath" in file
+                      ? "" + file.fullPath
+                      : "/" + file.name,
+            ];
+        });
+
+    useEffect(() => {
+        setOrphans([]);
+        setDeleteOrphans(true);
+        if (special !== "library" || (!singleOpen && !multipleOpen)) return;
+        const paths = (singleOpen ? [deletePath] : selectedFilePaths()).map((p) =>
+            p.replace(/^\/+/, ""),
+        );
+        let current = true;
+        api.apiPostTeddyCloudRaw("/api/toniesCustomJsonOrphans", JSON.stringify(paths))
+            .then((response) => (response.ok ? response.json() : []))
+            .then((names) => current && Array.isArray(names) && setOrphans(names))
+            .catch(() => undefined);
+        return () => {
+            current = false;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [singleOpen, multipleOpen]);
+
+    const orphansCheckbox =
+        orphans.length > 0 ? (
+            <Checkbox checked={deleteOrphans} onChange={(e) => setDeleteOrphans(e.target.checked)}>
+                {t("fileBrowser.deleteOrphanModels", { n: orphans.length })}
+            </Checkbox>
+        ) : undefined;
 
     const deleteFile = async (filePath: string, apiCall: string, flagMultiple?: boolean) => {
         const key = "deletingFiles";
@@ -116,7 +161,7 @@ const DeleteFilesModal: React.FC<DeleteFilesModalProps> = ({
             onCloseSingle();
             return;
         }
-        await deleteFile(deletePath, deleteApiCall);
+        await deleteFile(deletePath, deleteApiCall + modelsQuery);
         setRebuildList((prev) => !prev);
         onCloseSingle();
     };
@@ -139,19 +184,10 @@ const DeleteFilesModal: React.FC<DeleteFilesModalProps> = ({
             t("fileBrowser.messages.deleting"),
         );
 
-        for (const rowName of selectedRowKeys) {
-            const file =
-                files.find((f) => f.name === rowName) ||
-                files.find((f) => "fullPath" in f && f.fullPath === rowName);
-            if (file) {
-                const filePath = path
-                    ? decodeURIComponent(path) + "/" + file.name
-                    : "fullPath" in file
-                      ? "" + file.fullPath
-                      : "/" + file.name;
-                const apiCall = "?special=" + special + (overlay ? `&overlay=${overlay}` : "");
-                await deleteFile(filePath, apiCall, true);
-            }
+        const apiCall =
+            "?special=" + special + (overlay ? `&overlay=${overlay}` : "") + modelsQuery;
+        for (const filePath of selectedFilePaths()) {
+            await deleteFile(filePath, apiCall, true);
         }
 
         closeLoadingNotification(key);
@@ -183,6 +219,7 @@ const DeleteFilesModal: React.FC<DeleteFilesModalProps> = ({
                         ? t("fileBrowser.confirmDeleteFolderDialog", { fileToDelete })
                         : t("fileBrowser.confirmDeleteDialog", { fileToDelete })
                 }
+                contentDetails={orphansCheckbox}
                 handleOk={handleConfirmSingleDelete}
                 handleCancel={handleCancelDelete}
             />
@@ -196,11 +233,14 @@ const DeleteFilesModal: React.FC<DeleteFilesModalProps> = ({
                     (foldersSelected ? " " + t("fileBrowser.confirmDeleteFoldersNote") : "")
                 }
                 contentDetails={
-                    <ul style={{ maxHeight: "calc(1.5em * 5)", overflowY: "auto" }}>
-                        {selectedRowKeys.map((key, index) => (
-                            <li key={index}>{key.toString()}</li>
-                        ))}
-                    </ul>
+                    <>
+                        <ul style={{ maxHeight: "calc(1.5em * 5)", overflowY: "auto" }}>
+                            {selectedRowKeys.map((key, index) => (
+                                <li key={index}>{key.toString()}</li>
+                            ))}
+                        </ul>
+                        {orphansCheckbox}
+                    </>
                 }
                 handleOk={handleConfirmMultipleDelete}
                 handleCancel={handleCancelDelete}

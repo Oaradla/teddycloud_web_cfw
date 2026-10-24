@@ -5,6 +5,7 @@ import { Alert, Button, Typography } from "antd";
 import { TeddyCloudApi } from "../../api";
 import { defaultAPIConfig } from "../../config/defaultApiConfig";
 import { cfwApi, CfwFirmwareResponse } from "../../api/cfwApi";
+import { useAcl } from "../../provider/AclProvider";
 import { useTeddyCloud } from "../../provider/TeddyCloudProvider";
 import { NotificationTypeEnum } from "../../types/teddyCloudNotificationTypes";
 import { BoxesCard } from "./boxupdate/BoxesCard";
@@ -25,6 +26,7 @@ const { Paragraph } = Typography;
 export const BoxUpdate: React.FC = () => {
     const { t } = useTranslation();
     const { addNotification } = useTeddyCloud();
+    const acl = useAcl();
     const [reloadKey, setReloadKey] = useState(0);
     const enabled = useCfwEnabled(undefined, reloadKey);
     const [switching, setSwitching] = useState(false);
@@ -62,13 +64,19 @@ export const BoxUpdate: React.FC = () => {
                     showIcon
                     title={t("cfw.update.supportOff")}
                     action={
-                        <Button type="primary" loading={switching} onClick={() => void enable()}>
-                            {t("cfw.update.guide.enable")}
-                        </Button>
+                        acl.admin ? (
+                            <Button
+                                type="primary"
+                                loading={switching}
+                                onClick={() => void enable()}
+                            >
+                                {t("cfw.update.guide.enable")}
+                            </Button>
+                        ) : undefined
                     }
                     style={{ marginBottom: 16 }}
                 />
-                <InstallGuide open />
+                {acl.admin ? <InstallGuide open /> : null}
             </>
         );
     return <BoxUpdateCards />;
@@ -77,6 +85,7 @@ export const BoxUpdate: React.FC = () => {
 const BoxUpdateCards: React.FC = () => {
     const { t } = useTranslation();
     const { addNotification } = useTeddyCloud();
+    const acl = useAcl();
     const {
         boxes,
         loading: boxesLoading,
@@ -98,12 +107,14 @@ const BoxUpdateCards: React.FC = () => {
     const load = async () => {
         setLoading(true);
         try {
-            const [loadedFirmware, intervalResponse] = await Promise.all([
-                cfwApi.firmware(),
-                api.apiGetTeddyCloudSettingRaw("cfw.firmware.github_interval"),
-            ]);
-            setFirmware(loadedFirmware);
-            setGithubInterval(Number(await intervalResponse.text()) || 24);
+            setFirmware(await cfwApi.firmware());
+            /* the GitHub download is the admin's */
+            if (acl.admin) {
+                const intervalResponse = await api.apiGetTeddyCloudSettingRaw(
+                    "cfw.firmware.github_interval",
+                );
+                setGithubInterval(Number(await intervalResponse.text()) || 24);
+            }
         } catch (error) {
             notifyLoadError(String(error));
         }
@@ -122,28 +133,39 @@ const BoxUpdateCards: React.FC = () => {
         if (boxesError) notifyLoadError(boxesError);
     }, [boxesError]);
 
+    /* users update the boxes they have the update right for; the builds are the admin's */
+    const mine = boxes.filter((box) => acl.can("box", box.id, "box.update"));
     // the guide is for the first box; once one runs the custom firmware it moves down, closed
-    const anyCfw = boxes.some((box) => box.isCfw);
-    const guideFirst = !anyCfw && !boxesLoading;
+    const anyCfw = mine.some((box) => box.isCfw);
+    const guideFirst = !anyCfw && !boxesLoading && acl.admin;
 
     return (
         <>
             <Paragraph>{t("cfw.update.intro")}</Paragraph>
             {guideFirst ? <InstallGuide open /> : null}
             <BoxesCard
-                boxes={boxes}
+                boxes={mine}
                 images={firmware?.images ?? []}
                 loading={loading || boxesLoading}
                 onChanged={reload}
             />
-            <LibraryCard
-                images={firmware?.images ?? []}
-                defaultPage={firmware?.defaultPage}
-                loading={loading}
-                onChanged={reload}
-            />
-            <GithubCard github={firmware?.github} interval={githubInterval} onChanged={reload} />
-            {anyCfw ? <InstallGuide open={false} /> : null}
+            {acl.admin ? (
+                <>
+                    <LibraryCard
+                        images={firmware?.images ?? []}
+                        boxes={boxesLoading || boxesError ? undefined : boxes}
+                        defaultPage={firmware?.defaultPage}
+                        loading={loading}
+                        onChanged={reload}
+                    />
+                    <GithubCard
+                        github={firmware?.github}
+                        interval={githubInterval}
+                        onChanged={reload}
+                    />
+                    {anyCfw ? <InstallGuide open={false} /> : null}
+                </>
+            ) : null}
         </>
     );
 };

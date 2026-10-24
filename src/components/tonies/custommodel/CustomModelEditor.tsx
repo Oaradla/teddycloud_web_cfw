@@ -19,6 +19,7 @@ import { TonieCardProps, TonieInfo } from "../../../types/tonieTypes";
 import { TeddyCloudApi } from "../../../api";
 import { defaultAPIConfig } from "../../../config/defaultApiConfig";
 import { useTeddyCloud } from "../../../provider/TeddyCloudProvider";
+import { useAcl } from "../../../provider/AclProvider";
 import { NotificationTypeEnum } from "../../../types/teddyCloudNotificationTypes";
 import SelectImageModal from "../common/modals/SelectImageModal";
 import { CustomModelEditModal } from "./modals/CustomModelEditModal";
@@ -129,6 +130,7 @@ export const CustomModelEditor: React.FC<CustomModelEditorProps> = ({
     const { t } = useTranslation();
     const { token } = theme.useToken();
     const { addNotification, invalidateTonies } = useTeddyCloud();
+    const acl = useAcl();
     const [form] = Form.useForm<FormValues>();
 
     const [saving, setSaving] = useState(false);
@@ -482,6 +484,7 @@ export const CustomModelEditor: React.FC<CustomModelEditorProps> = ({
             if (mode !== "create-single") {
                 invalidateTonies();
             }
+            void acl.refresh();
             setValue?.(draft.model);
             if (props?.onChange) props.onChange(draft.model);
             const selectionText =
@@ -894,13 +897,16 @@ export const CustomModelEditor: React.FC<CustomModelEditorProps> = ({
         }
     }, [modelListPage, modelListTotalPages]);
 
-    const handleDeleteEntryByIndex = async (idx: number) => {
+    const handleDeleteEntryByIndex = async (idx: number, pictures = false) => {
         if (idx < 0 || idx >= customEntries.length) return;
         const entry = customEntries[idx];
         if (!entry) return;
         setSaving(true);
         try {
-            await postJson("/api/toniesCustomJsonDelete", { models: [entry.model] });
+            await postJson("/api/toniesCustomJsonDelete", {
+                models: [entry.model],
+                ...(pictures ? { pictures: true } : {}),
+            });
             const next = customEntries.filter((_, i) => i !== idx);
             setCustomEntries(next);
             setPersistedEntries(next.map((e) => cloneEntry(e)));
@@ -911,6 +917,7 @@ export const CustomModelEditor: React.FC<CustomModelEditorProps> = ({
                 setEditIndex(editIndex - 1);
             }
             invalidateTonies();
+            void acl.refresh();
             addNotification(
                 NotificationTypeEnum.Success,
                 t("tonies.customEditor.actions.delete"),
@@ -977,6 +984,17 @@ export const CustomModelEditor: React.FC<CustomModelEditorProps> = ({
     const singleFormMode =
         mode === "create-single" || mode === "edit-single" || mode === "audio-single";
 
+    const editedEntry = editIndex !== null ? customEntries[editIndex] : undefined;
+    const editedPersisted = editedEntry && persistedByModel.get(toModelKey(editedEntry.model));
+    const readOnly = editedPersisted
+        ? !acl.mayChangeModel(editedPersisted.model)
+        : !!editedEntry && !acl.canCreateModels;
+
+    /** the picture of a custom tonie is in custom_img and no other custom tonie shows it */
+    const isLastWithOwnPic = (entry: CustomEntry) =>
+        !!entry.pic?.startsWith("/custom_img/") &&
+        persistedEntries.filter((e) => e.pic === entry.pic).length === 1;
+
     const currentTableRowIndex =
         editIndex === null ? -1 : tableRows.findIndex((row) => row.idx === editIndex);
     const canGoPrev = !singleFormMode && currentTableRowIndex > 0;
@@ -1032,6 +1050,7 @@ export const CustomModelEditor: React.FC<CustomModelEditorProps> = ({
             AudioLibraryPathInputComponent={AudioLibraryPathInput}
             fileTrackSeconds={fileTrackSeconds}
             fileLengthSeconds={fileLengthSeconds}
+            readOnly={readOnly}
         />
     );
 
@@ -1085,6 +1104,16 @@ export const CustomModelEditor: React.FC<CustomModelEditorProps> = ({
             )
         ) : null;
 
+    const readOnlyHint =
+        readOnly && editedPersisted ? (
+            <Alert
+                type="info"
+                showIcon
+                style={{ marginBottom: 12 }}
+                title={t("tonies.customEditor.readOnly")}
+            />
+        ) : null;
+
     const editorBody = (
         <Row gutter={16}>
             <Col span={24}>
@@ -1133,6 +1162,9 @@ export const CustomModelEditor: React.FC<CustomModelEditorProps> = ({
                             modelListTotalPages={modelListTotalPages}
                             gridColumns={gridColumns}
                             token={token}
+                            canCreate={acl.canCreateModels}
+                            mayDelete={(entry) => acl.mayChangeModel(entry.model)}
+                            offerPictureDelete={isLastWithOwnPic}
                             onMergeAndCreateNew={() => {
                                 const nextEntries = mergeCurrentFormIntoEntries(customEntries);
                                 void createAndSelectNewEntry(nextEntries);
@@ -1205,7 +1237,7 @@ export const CustomModelEditor: React.FC<CustomModelEditorProps> = ({
                 <CustomModelEditModal
                     open={editModalVisible}
                     onCancel={handleCloseEditModal}
-                    onSave={() => handleSaveFromModal(false)}
+                    onSave={readOnly ? undefined : () => handleSaveFromModal(false)}
                     onSaveForNavigate={() => handleSaveFromModal(true)}
                     onPrev={handlePrevInModal}
                     onNext={handleNextInModal}
@@ -1226,6 +1258,7 @@ export const CustomModelEditor: React.FC<CustomModelEditorProps> = ({
                     hasChanges={hasEditChanges}
                     zIndex={singleFormMode ? 1100 : undefined}
                 >
+                    {readOnlyHint}
                     {audioSourceHint}
                     {overrideHint}
                     {editModelFormContent}

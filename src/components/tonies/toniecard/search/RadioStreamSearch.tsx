@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Typography } from "antd";
+import { Button, Tooltip, Typography } from "antd";
+import { PlayCircleOutlined } from "@ant-design/icons";
 
 import { useTeddyCloud } from "../../../../provider/TeddyCloudProvider";
+import { useAudioContext } from "../../../../provider/AudioProvider";
 import { NotificationTypeEnum } from "../../../../types/teddyCloudNotificationTypes";
 import { useRadioStreamSearch } from "../hooks/useRadioStreamSearch";
 import { useDebouncedCallback } from "../../common/hooks/useDebouncedCallback";
@@ -16,6 +18,7 @@ export const RadioStreamSearch: React.FC<{
 }> = ({ placeholder, onChange }) => {
     const { t } = useTranslation();
     const { addNotification } = useTeddyCloud();
+    const { playAudio } = useAudioContext();
 
     const {
         value,
@@ -60,7 +63,27 @@ export const RadioStreamSearch: React.FC<{
 
     const dropdownOptions: SearchDropdownOption[] = options.map((d) => ({
         value: d.value,
-        label: d.text,
+        label: (
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ flex: 1 }}>{d.text}</span>
+                <Tooltip title={t("radioStreamSearch.preview")}>
+                    <Button
+                        type="text"
+                        size="small"
+                        icon={<PlayCircleOutlined />}
+                        aria-label={t("radioStreamSearch.preview")}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            playAudio(d.value, {
+                                series: d.text,
+                                episode: t("radioStreamSearch.preview"),
+                                picture: d.favicon || "/img_unknown.png",
+                            });
+                        }}
+                    />
+                </Tooltip>
+            </span>
+        ),
     }));
 
     return (

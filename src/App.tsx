@@ -309,7 +309,10 @@ function AuthenticatedApp({
                                 <Route
                                     path="/tonieboxes/boxupdate"
                                     element={
-                                        <AdminOnly fallback="/tonieboxes">
+                                        <AdminOnly
+                                            fallback="/tonieboxes"
+                                            allow={(acl) => acl.canUpdateBoxes}
+                                        >
                                             <BoxUpdatePage />
                                         </AdminOnly>
                                     }

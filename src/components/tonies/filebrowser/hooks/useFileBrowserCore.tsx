@@ -11,6 +11,7 @@ import { NotificationTypeEnum } from "../../../../types/teddyCloudNotificationTy
 import { TeddyCloudApi } from "../../../../api";
 import { defaultAPIConfig } from "../../../../config/defaultApiConfig";
 import { UI_SEARCH_DEBOUNCE_MS } from "../../../../constants/numbers";
+import { userStorage } from "../../../../utils/storage/userStorage";
 
 const api = new TeddyCloudApi(defaultAPIConfig());
 
@@ -46,11 +47,17 @@ interface UseFileBrowserCoreResult {
     handleFilterFieldInputFocus: () => void;
     handleFilterFieldInputBlur: () => void;
     inputFilterRef: React.RefObject<InputRef | null>;
+    /** The filter also searches the subfolders; their entries are named by their path below. */
+    deepSearch: boolean;
+    setDeepSearch: (value: boolean) => void;
 
     generateBreadcrumbs: (currentPath: string) => React.ReactNode;
 
     buildDirPath: (dirPath: string) => string;
-    buildContentUrl: (fileName: string, options?: { ogg?: boolean }) => string;
+    buildContentUrl: (
+        fileName: string,
+        options?: { ogg?: boolean; path?: string; special?: string },
+    ) => string;
 
     defaultSorter: (a: any, b: any, dataIndex: string | string[]) => number;
     dirNameSorter: (a: any, b: any, order?: SortOrder) => number;
@@ -98,6 +105,14 @@ export const useFileBrowserCore = ({
     const [filterInputText, setFilterInputText] = useState<string>("");
     const [filterText, setFilterText] = useState<string>("");
     const [filterFieldAutoFocus, setFilterFieldAutoFocus] = useState<boolean>(false);
+    const [deepSearch, setDeepSearchState] = useState<boolean>(
+        () => userStorage.getItem("fileBrowserDeepSearch") === "true",
+    );
+    const setDeepSearch = (value: boolean) => {
+        setDeepSearchState(value);
+        userStorage.setItem("fileBrowserDeepSearch", String(value));
+    };
+    const deepSearchActive = deepSearch && filterText.trim().length >= 2;
     const [loading, setLoading] = useState<boolean>(true);
 
     const inputFilterRef = useRef<InputRef>(null);
@@ -154,6 +169,47 @@ export const useFileBrowserCore = ({
 
         const apiPathParam = mode === "fileBrowser" ? path : encodeURIComponent(path);
         const activeFiletypeFilter = filetypeFilterKey ? filetypeFilterKey.split("|") : [];
+        const keepEntry = (entry: Record) => {
+            if (showDirOnly && !entry.isDir) return false;
+            if (activeFiletypeFilter.length > 0 && !entry.isDir) {
+                const lowerName = entry.name.toLowerCase();
+                return activeFiletypeFilter.some((suffix) =>
+                    lowerName.endsWith(suffix.toLowerCase()),
+                );
+            }
+            return true;
+        };
+
+        if (deepSearchActive) {
+            // everything below the folder, named by its path from here, so the actions work as usual
+            const rawPath = mode === "fileBrowser" ? decodeURIComponent(path) : path;
+            const walk = async (relative: string): Promise<Record[]> => {
+                const response = await api.apiGetTeddyCloudApiRaw(
+                    `/api/fileIndexV2?path=${encodeURIComponent(rawPath + (relative ? "/" + relative : ""))}&special=${special}` +
+                        (overlay ? `&overlay=${overlay}` : ""),
+                    undefined,
+                    { signal: abortController.signal },
+                );
+                if (!response.ok) return [];
+                const entries = (((await response.json()).files || []) as Record[]).filter(
+                    (entry) => entry.name !== "." && entry.name !== "..",
+                );
+                const below = await Promise.all(
+                    entries.map(async (entry) => {
+                        const name = relative ? `${relative}/${entry.name}` : entry.name;
+                        return [{ ...entry, name }, ...(entry.isDir ? await walk(name) : [])];
+                    }),
+                );
+                return below.flat();
+            };
+            setLoading(true);
+            walk("")
+                .then((all) => isCurrentRequest() && setFiles(all.filter(keepEntry)))
+                .catch(() => undefined)
+                .finally(() => isCurrentRequest() && setLoading(false));
+            return () => abortController.abort();
+        }
+
         const cacheKey = `fileIndexV2:${special}:${overlay || ""}:${apiPathParam}:${showDirOnly}:${filetypeFilterKey}`;
         const useSwr = special === "custom_img";
 
@@ -201,17 +257,7 @@ export const useFileBrowserCore = ({
 
                 const list: Record[] = (data.files || []) as Record[];
 
-                const filteredList = list.filter((entry) => {
-                    if (showDirOnly && !entry.isDir) return false;
-
-                    if (activeFiletypeFilter.length > 0 && !entry.isDir) {
-                        const lowerName = entry.name.toLowerCase();
-                        return activeFiletypeFilter.some((suffix) =>
-                            lowerName.endsWith(suffix.toLowerCase()),
-                        );
-                    }
-                    return true;
-                });
+                const filteredList = list.filter(keepEntry);
 
                 setFiles(filteredList);
 
@@ -275,7 +321,16 @@ export const useFileBrowserCore = ({
         return () => {
             abortController.abort();
         };
-    }, [active, path, special, overlay, showDirOnly, filetypeFilterKey, rebuildList]);
+    }, [
+        active,
+        path,
+        special,
+        overlay,
+        showDirOnly,
+        filetypeFilterKey,
+        rebuildList,
+        deepSearchActive,
+    ]);
 
     useEffect(() => {
         const timer = window.setTimeout(
@@ -424,22 +479,31 @@ export const useFileBrowserCore = ({
         return path ? `${path}/${dirPath}` : dirPath;
     };
 
-    const buildContentUrl = (fileName: string, options?: { ogg?: boolean }): string => {
-        const { ogg = false } = options || {};
+    const buildContentUrl = (
+        fileName: string,
+        options?: { ogg?: boolean; path?: string; special?: string },
+    ): string => {
+        const { ogg = false, path: pathOverride, special: specialOverride } = options || {};
 
         const encodedPath =
-            mode === "fileBrowser"
-                ? path || ""
-                : path
-                  ? path
-                        .split("/")
-                        .map((segment) => encodeURIComponent(segment))
-                        .join("/")
-                  : "";
-
+            pathOverride !== undefined
+                ? pathOverride
+                      .split("/")
+                      .filter(Boolean)
+                      .map((segment) => encodeURIComponent(segment))
+                      .join("/")
+                : mode === "fileBrowser"
+                  ? path || ""
+                  : path
+                    ? path
+                          .split("/")
+                          .map((segment) => encodeURIComponent(segment))
+                          .join("/")
+                    : "";
+        const targetSpecial = specialOverride !== undefined ? specialOverride : special;
         const encodedName = encodeURIComponent(fileName);
 
-        if (special === "custom_img") {
+        if (targetSpecial === "custom_img") {
             return encodedPath
                 ? `/custom_img/${encodedPath}/${encodedName}`
                 : `/custom_img/${encodedName}`;
@@ -449,10 +513,13 @@ export const useFileBrowserCore = ({
 
         const params = new URLSearchParams();
         if (ogg) params.set("ogg", "true");
-        params.set("special", special);
+        if (targetSpecial) params.set("special", targetSpecial);
         if (overlay) params.set("overlay", overlay);
 
-        url += `?${params.toString()}`;
+        const query = params.toString();
+        if (query) {
+            url += `?${query}`;
+        }
         return url;
     };
 
@@ -476,6 +543,8 @@ export const useFileBrowserCore = ({
         handleFilterFieldInputFocus,
         handleFilterFieldInputBlur,
         inputFilterRef,
+        deepSearch,
+        setDeepSearch,
 
         generateBreadcrumbs,
 

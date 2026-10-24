@@ -29,12 +29,14 @@ import { IMAGE_EXTENSIONS } from "../../../constants/fileTypes";
 import { ffmpegSupportedExtensions } from "../../../utils/files/ffmpegSupportedExtensions";
 
 import { FileObject, Record, RecordTafHeader } from "../../../types/fileBrowserTypes";
+import { DeepSearchToggle } from "./items/DeepSearchToggle";
 
 import { LoadingSpinnerAsOverlay } from "../../common/elements/LoadingSpinner";
 import HelpModal from "./modals/FileBrowserHelpModal";
 
 import { MAX_FILES } from "../../../constants/numbers";
 import { useAudioContext } from "../../../provider/AudioProvider";
+import { useAcl } from "../../../provider/AclProvider";
 import { generateUUID } from "../../../utils/ids/generateUUID";
 import { useDirectoryCreate } from "../common/hooks/useCreateDirectory";
 import { useDirectoryTree } from "../common/hooks/useDirectoryTree";
@@ -60,8 +62,12 @@ import { CustomModelEditor } from "../custommodel/CustomModelEditor";
 import { UnusedTAFsModal } from "./modals/UnusedTAFsModal";
 import CustomJsonSnippetModal from "./modals/CustomJsonSnippetModal";
 import { backendUrl, withBase } from "../../../utils/basePath";
+import { TeddyCloudApi } from "../../../api";
+import { defaultAPIConfig } from "../../../config/defaultApiConfig";
 
 const { Paragraph } = Typography;
+
+const api = new TeddyCloudApi(defaultAPIConfig());
 
 const { useToken } = theme;
 
@@ -85,6 +91,7 @@ export const FileBrowser: React.FC<{
     const { t } = useTranslation();
     const { playAudio } = useAudioContext();
     const { token } = useToken();
+    const acl = useAcl();
 
     const navigate = useNavigate();
 
@@ -151,6 +158,8 @@ export const FileBrowser: React.FC<{
         clearFilterField,
         handleFilterFieldInputFocus,
         handleFilterFieldInputBlur,
+        deepSearch,
+        setDeepSearch,
         inputFilterRef,
         generateBreadcrumbs,
         buildDirPath,
@@ -211,12 +220,60 @@ export const FileBrowser: React.FC<{
     });
 
     // information modal
-    const showInformationModal = (record: any) => {
-        if (!record.isDir && record.tonieInfo?.tracks) {
-            setCurrentRecord(record);
-            setCurrentAudioUrl(buildContentUrl(record.name, { ogg: true }));
-            setIsInformationModalOpen(true);
+    const buildLibraryTafContentUrl = (source: unknown): string | null => {
+        if (typeof source !== "string" || !source.toLowerCase().startsWith("lib://")) {
+            return null;
         }
+
+        let libraryPath = source.slice("lib://".length).replace(/^\/+/, "");
+        try {
+            libraryPath = decodeURIComponent(libraryPath);
+        } catch {
+            // Keep the original path if it is not URI encoded correctly.
+        }
+
+        libraryPath = libraryPath.replace(/\\/g, "/").replace(/\/{2,}/g, "/");
+        if (!libraryPath.toLowerCase().endsWith(".taf")) {
+            return null;
+        }
+
+        const pathParts = libraryPath.split("/").filter(Boolean);
+        const fileName = pathParts.pop();
+        if (!fileName) {
+            return null;
+        }
+
+        return buildContentUrl(fileName, {
+            ogg: true,
+            path: pathParts.join("/"),
+            special: "library",
+        });
+    };
+
+    const showInformationModal = async (record: Record) => {
+        if (record.isDir || !record.tonieInfo?.tracks) {
+            return;
+        }
+
+        let audioUrl = buildContentUrl(record.name, { ogg: true });
+
+        if (record.name.toLowerCase().match(/500304e0\.json$/)) {
+            try {
+                const response = await api.apiGetTeddyCloudApiRaw(buildContentUrl(record.name));
+                const contentJson = await response.json();
+                const sourceAudioUrl = buildLibraryTafContentUrl(contentJson?.source);
+
+                if (sourceAudioUrl) {
+                    audioUrl = sourceAudioUrl;
+                }
+            } catch (error) {
+                console.warn("Could not resolve audio source from content JSON", error);
+            }
+        }
+
+        setCurrentRecord(record);
+        setCurrentAudioUrl(audioUrl);
+        setIsInformationModalOpen(true);
     };
 
     // json viewer
@@ -375,8 +432,11 @@ export const FileBrowser: React.FC<{
     ) => {
         if (
             record.name.toLowerCase().endsWith(".taf") &&
-            buildTafDownloadTracks(record.tonieInfo?.tracks, record.tafHeader?.trackSeconds)
-                .length > 1
+            buildTafDownloadTracks(
+                record.tonieInfo?.tracks,
+                record.tafHeader?.trackSeconds,
+                record.tafHeader?.lengthSeconds,
+            ).length > 1
         ) {
             setTafDownloadRecord(record);
             return;
@@ -416,6 +476,11 @@ export const FileBrowser: React.FC<{
         return numberOfFiles > 0 && numberOfFiles <= MAX_FILES;
     };
 
+    // users may add new pictures to the root of custom_img only
+    const isCustomImg = special === "custom_img";
+    const canUploadHere =
+        !isCustomImg || acl.admin || (acl.canCreateModels && !path.replace(/\//g, ""));
+
     // columns
 
     const columns = createColumns({
@@ -442,6 +507,14 @@ export const FileBrowser: React.FC<{
         showRenameDialog,
         showMoveDialog,
         showDeleteConfirmDialog,
+        canDelete: isCustomImg
+            ? (record) =>
+                  record.isDir
+                      ? acl.admin
+                      : acl.mayDeleteImage(
+                            `${decodeURIComponent(path)}/${record.name}`.replace(/^\/+/, ""),
+                        )
+            : undefined,
         toggleListened,
         showAssignTonieDialog,
         buildContentUrl: special === "custom_img" ? buildContentUrl : undefined,
@@ -632,6 +705,7 @@ export const FileBrowser: React.FC<{
                     tracks={buildTafDownloadTracks(
                         tafDownloadRecord.tonieInfo?.tracks,
                         tafDownloadRecord.tafHeader?.trackSeconds,
+                        tafDownloadRecord.tafHeader?.lengthSeconds,
                     )}
                     contentUrl={withBase(buildContentUrl(tafDownloadRecord.name, { ogg: true }))}
                     baseFilename={sanitizeDownloadName(
@@ -785,25 +859,29 @@ export const FileBrowser: React.FC<{
                                         size="small"
                                     />
                                 ) : null}
-                                <Button
-                                    icon={<FolderAddOutlined />}
-                                    size="small"
-                                    onClick={() => openCreateDirectoryModal(path)}
-                                >
-                                    <div className="showBigDevicesOnly showMediumDevicesOnly">
-                                        {t("fileBrowser.createDirectory.createDirectory")}
-                                    </div>
-                                </Button>
-                                <Button
-                                    icon={<UploadOutlined />}
-                                    size="small"
-                                    onClick={showUploadFilesDragAndDropModal}
-                                >
-                                    <div className="showBigDevicesOnly showMediumDevicesOnly">
-                                        {t("fileBrowser.upload.showUploadFilesDragNDrop")}
-                                    </div>
-                                </Button>
-                                {special === "library" && (
+                                {!isCustomImg || acl.admin ? (
+                                    <Button
+                                        icon={<FolderAddOutlined />}
+                                        size="small"
+                                        onClick={() => openCreateDirectoryModal(path)}
+                                    >
+                                        <div className="showBigDevicesOnly showMediumDevicesOnly">
+                                            {t("fileBrowser.createDirectory.createDirectory")}
+                                        </div>
+                                    </Button>
+                                ) : null}
+                                {canUploadHere ? (
+                                    <Button
+                                        icon={<UploadOutlined />}
+                                        size="small"
+                                        onClick={showUploadFilesDragAndDropModal}
+                                    >
+                                        <div className="showBigDevicesOnly showMediumDevicesOnly">
+                                            {t("fileBrowser.upload.showUploadFilesDragNDrop")}
+                                        </div>
+                                    </Button>
+                                ) : null}
+                                {special === "library" && !isTapList && (
                                     <Button
                                         size="small"
                                         icon={<SearchOutlined />}
@@ -812,7 +890,7 @@ export const FileBrowser: React.FC<{
                                         {t("fileBrowser.unusedTafsModal.title")}
                                     </Button>
                                 )}
-                                {special === "library" && (
+                                {special === "library" && !isTapList && (
                                     <Button
                                         size="small"
                                         icon={<CodeOutlined />}
@@ -926,6 +1004,12 @@ export const FileBrowser: React.FC<{
                                                     placeholder={t("fileBrowser.filter")}
                                                     value={filterInputText}
                                                     onChange={handleFilterChange}
+                                                    addonAfter={
+                                                        <DeepSearchToggle
+                                                            value={deepSearch}
+                                                            onChange={setDeepSearch}
+                                                        />
+                                                    }
                                                     onFocus={handleFilterFieldInputFocus}
                                                     onBlur={handleFilterFieldInputBlur}
                                                     ref={inputFilterRef}

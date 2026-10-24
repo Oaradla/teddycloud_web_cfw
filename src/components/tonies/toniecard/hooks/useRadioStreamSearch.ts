@@ -7,6 +7,7 @@ import {
 export interface RadioStreamOption {
     value: string;
     text: string;
+    favicon?: string;
 }
 
 interface RadioBrowserServer {
@@ -18,6 +19,7 @@ interface RadioBrowserStation {
     name: string;
     country?: string;
     language?: string;
+    favicon?: string;
 }
 
 export function useRadioStreamSearch(onError?: (error: unknown) => void) {
@@ -133,6 +135,7 @@ export function useRadioStreamSearch(onError?: (error: unknown) => void) {
                             (item.country ? "[" + item.country + "] " : "") +
                             item.name +
                             (item.language ? " (" + item.language + ")" : ""),
+                        favicon: item.favicon || undefined,
                     };
                 });
 

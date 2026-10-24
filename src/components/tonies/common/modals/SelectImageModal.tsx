@@ -12,6 +12,7 @@ import {
 } from "../../../../constants/numbers";
 import { useUploadTimeoutMs } from "../../../../hooks/getsettings/useUploadTimeoutMs";
 import { useTeddyCloud } from "../../../../provider/TeddyCloudProvider";
+import { useAcl } from "../../../../provider/AclProvider";
 import { NotificationTypeEnum } from "../../../../types/teddyCloudNotificationTypes";
 import { useDirectoryTree } from "../hooks/useDirectoryTree";
 import { useDirectoryCreate } from "../hooks/useCreateDirectory";
@@ -89,6 +90,7 @@ export const SelectImageModal: React.FC<SelectImageModalProps> = ({
     const { token } = useToken();
     const { addNotification, addLoadingNotification, closeLoadingNotification } = useTeddyCloud();
     const uploadTimeoutMs = useUploadTimeoutMs();
+    const acl = useAcl();
     const title = titleProp ?? t("tonies.imageManager.title");
     const [source, setSource] = useState<ImageSource>("custom");
     const [customPath, setCustomPath] = useState("");
@@ -201,7 +203,9 @@ export const SelectImageModal: React.FC<SelectImageModalProps> = ({
             t("fileBrowser.upload.uploading"),
             t("fileBrowser.upload.uploadInProgress", { file: file.name }),
         );
-        const encodedPath = normalizePathForQuery(customPath);
+        // users may only add pictures to the root of custom_img
+        const uploadPath = acl.admin ? customPath : "";
+        const encodedPath = normalizePathForQuery(uploadPath);
         const formData = new FormData();
         formData.append("file", file, file.name);
         const timeoutMsg = t("fileBrowser.upload.uploadTimeout", { ms: uploadTimeoutMs });
@@ -225,7 +229,7 @@ export const SelectImageModal: React.FC<SelectImageModalProps> = ({
                 );
                 setRebuildTrigger((prev) => prev + 1);
                 if (IMAGE_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext))) {
-                    setCustomSelections([toCustomImgWebPath(customPath, file.name)]);
+                    setCustomSelections([toCustomImgWebPath(uploadPath, file.name)]);
                 }
                 onSuccess?.("ok");
             } else {
@@ -253,7 +257,7 @@ export const SelectImageModal: React.FC<SelectImageModalProps> = ({
     const uploadDraggerProps: UploadProps = {
         name: "file",
         multiple: true,
-        accept: IMAGE_EXTENSIONS.map((ext) => `.${ext}`).join(","),
+        accept: IMAGE_EXTENSIONS.map((ext) => `${ext}`).join(","),
         fileList: uploadFileList,
         customRequest: handleUploadRequest,
         onChange: (info) => {
@@ -394,6 +398,16 @@ export const SelectImageModal: React.FC<SelectImageModalProps> = ({
                                 openCreateDirectoryModal={openCreateDirectoryModal}
                                 onCustomSelect={handleCustomFileSelectChange}
                                 onCustomDoubleClick={handleCustomFileDoubleClick}
+                                canUpload={acl.canCreateModels}
+                                canCreateDirectory={acl.admin}
+                                mayDeleteImage={acl.mayDeleteImage}
+                                onImageDeleted={(webPath) => {
+                                    setRebuildTrigger((prev) => prev + 1);
+                                    setCustomSelections((prev) =>
+                                        prev.filter((p) => p !== webPath),
+                                    );
+                                    void acl.refresh();
+                                }}
                                 onCustomImgDropFiles={(files) => {
                                     Array.from(files).forEach((file) => {
                                         if (

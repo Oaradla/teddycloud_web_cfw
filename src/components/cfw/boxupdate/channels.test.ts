@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { CfwBox, CfwImage } from "../../../api/cfwApi";
-import { channelKey, esp32Installs, imagesForBox, pageOffered, platformOf } from "./channels";
+import {
+    channelKey,
+    esp32Installs,
+    imagesForBox,
+    oldImages,
+    pageOffered,
+    platformOf,
+} from "./channels";
 
 const image = (build: number, platform?: "cc3200" | "esp32") =>
     ({ build, platform, channel: "beta", version: "", revision: "" }) as CfwImage;
@@ -73,5 +80,25 @@ describe("setup page of a release", () => {
         expect(pageOffered(box({ pageVersion: 111 }), withPage)).toBe(false);
         expect(pageOffered(box({ pageVersion: 111 }), image(6))).toBe(false);
         expect(pageOffered(box({ pageVersion: 111 }), undefined)).toBe(false);
+    });
+});
+
+describe("old images", () => {
+    it("are the custom images that are neither the newest of their platform nor used by a box", () => {
+        const original = { ...image(1, "esp32"), original: true } as CfwImage;
+        const images = [
+            image(1),
+            image(2),
+            image(3),
+            image(4),
+            image(5),
+            image(9, "esp32"),
+            original,
+        ];
+        const running = box({ version: 2 });
+        const assigned = box({ update: { ...box({}).update, target: 3, next: 4 } });
+        const esp32 = box({ platform: "esp32", version: 5 });
+        expect(oldImages(images, [running, assigned, esp32]).map((i) => i.build)).toEqual([1]);
+        expect(oldImages(images, []).map((i) => i.build)).toEqual([1, 2, 3, 4]);
     });
 });

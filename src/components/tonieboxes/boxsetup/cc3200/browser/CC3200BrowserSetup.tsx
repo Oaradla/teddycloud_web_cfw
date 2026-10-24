@@ -68,6 +68,7 @@ export function CC3200BrowserSetup({ onShowBoxes }: { onShowBoxes: () => void })
     const [log, setLog] = useState<string[]>([]);
     const backup = useRef<{ flash: Uint8Array; files: Map<string, Uint8Array> } | null>(null);
     const [backupSaved, setBackupSaved] = useState(false);
+    const [storedName, setStoredName] = useState("");
     const [failed, setFailed] = useState<string[]>([]);
     const [mac, setMac] = useState("");
     const [certsDone, setCertsDone] = useState(false);
@@ -137,6 +138,15 @@ export function CC3200BrowserSetup({ onShowBoxes }: { onShowBoxes: () => void })
                 mac: found || "?",
             });
             addLog(done);
+            // the raw flash also on the server; then the download is no longer required
+            try {
+                const name = await cfwApi.storeDump(`CC3200_${found || "unknown"}`, flash);
+                setStoredName(name);
+                setBackupSaved(true);
+                addLog(`flash stored on the server: ${name}`);
+            } catch (e) {
+                addLog(`flash not stored on the server: ${(e as Error).message}`);
+            }
             return done;
         });
 
@@ -310,6 +320,14 @@ export function CC3200BrowserSetup({ onShowBoxes }: { onShowBoxes: () => void })
                             />
                         </Form.Item>
                     </Form>
+                    {storedName && (
+                        <Alert
+                            type="success"
+                            showIcon
+                            title={t(k + "backupStored", { name: storedName })}
+                            style={{ marginBottom: 16 }}
+                        />
+                    )}
                     <Button onClick={downloadBackup}>{t(k + "downloadBackup")}</Button>
                 </div>
             )}

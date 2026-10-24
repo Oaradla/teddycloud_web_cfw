@@ -75,6 +75,7 @@ interface CustomModelFormProps {
     fileTrackSeconds?: number[];
     /** Total length (seconds) of the linked file, when known. */
     fileLengthSeconds?: number;
+    readOnly?: boolean;
 }
 
 export const CustomModelForm: React.FC<CustomModelFormProps> = ({
@@ -101,6 +102,7 @@ export const CustomModelForm: React.FC<CustomModelFormProps> = ({
     AudioLibraryPathInputComponent,
     fileTrackSeconds,
     fileLengthSeconds,
+    readOnly = false,
 }) => {
     const { t } = useTranslation();
     // as saved: by position, without trailing empty rows
@@ -571,7 +573,7 @@ export const CustomModelForm: React.FC<CustomModelFormProps> = ({
             form={form}
             layout="vertical"
             style={{ marginTop: 12 }}
-            disabled={selectedIsDeleted}
+            disabled={selectedIsDeleted || readOnly}
         >
             <Row gutter={[12, 0]}>
                 <Col xs={24} md={8}>

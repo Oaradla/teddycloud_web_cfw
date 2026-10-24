@@ -2,7 +2,9 @@ import React, { useState } from "react";
 import { Alert, Button, Collapse, Divider, Typography } from "antd";
 import {
     ClearOutlined,
+    DownloadOutlined,
     FolderAddOutlined,
+    LoadingOutlined,
     PrinterOutlined,
     ScissorOutlined,
     UnorderedListOutlined,
@@ -24,6 +26,8 @@ import { BulkAddToniesModal } from "./input/BulkAddToniesModal";
 import { CustomImages } from "./input/CustomImages";
 import { EditLabelModal } from "./modals/EditLabelModal";
 import { LabelOverridesById, LabelOverrides } from "./types/labelOverrides";
+import { createTeddyStudioPdf } from "./print/teddyStudioPdf";
+import { createTeddyStudioPdfFilename, downloadPdfBlob, printPdfBlob } from "./print/printFile";
 import SelectImageModal from "../common/modals/SelectImageModal";
 import { AddFolderModal } from "./input/AddFolderModal";
 import { folderTonieInfos, freshDatasets, myTonieInfos } from "./input/addFromTeddyCloud";
@@ -46,6 +50,7 @@ export const TeddyStudio: React.FC = () => {
 
     const { handleSearch } = useData();
     const [editIndex, setEditIndex] = useState<number | null>(null);
+    const [preparingPdfAction, setPreparingPdfAction] = useState<"print" | "download" | null>(null);
 
     const {
         customItems,
@@ -152,6 +157,79 @@ export const TeddyStudio: React.FC = () => {
         );
     };
 
+    const handlePdfAction = async (action: "print" | "download") => {
+        if (preparingPdfAction !== null || mergedResults.length === 0) return;
+
+        setPreparingPdfAction(action);
+
+        try {
+            const warnings = new Map<string, string>();
+            const pdf = await createTeddyStudioPdf({
+                items: mergedResults,
+                settings,
+                labelOverridesById,
+                onWarning: (warning) => {
+                    const key = `${warning.code}:${warning.url ?? warning.message}`;
+                    warnings.set(key, warning.message);
+                    console.warn(`[TeddyStudio PDF] ${warning.message}`);
+                },
+            });
+
+            const filename = createTeddyStudioPdfFilename();
+
+            if (action === "download") {
+                downloadPdfBlob(pdf, filename);
+            } else {
+                const printResult = await printPdfBlob(pdf, filename);
+                if (printResult === "downloaded") {
+                    addNotification(
+                        NotificationTypeEnum.Warning,
+                        t("tonies.teddystudio.printPage"),
+                        "The browser could not print or open the finished PDF. The PDF was downloaded instead.",
+                        t("tonies.teddystudio.navigationTitle"),
+                        undefined,
+                        false,
+                    );
+                }
+            }
+
+            if (warnings.size > 0) {
+                const descriptions = Array.from(warnings.values());
+                const description =
+                    descriptions.length === 1
+                        ? descriptions[0]
+                        : `${descriptions.length} resources could not be loaded while creating the PDF. The affected content was skipped.`;
+                addNotification(
+                    NotificationTypeEnum.Warning,
+                    action === "print"
+                        ? t("tonies.teddystudio.printPage")
+                        : t("tonies.teddystudio.downloadPdf"),
+                    description,
+                    t("tonies.teddystudio.navigationTitle"),
+                    undefined,
+                    false,
+                );
+            }
+        } catch (error) {
+            const description = error instanceof Error ? error.message : String(error);
+            addNotification(
+                NotificationTypeEnum.Error,
+                action === "print"
+                    ? t("tonies.teddystudio.printPage")
+                    : t("tonies.teddystudio.downloadPdf", { defaultValue: "Download PDF" }),
+                description,
+                t("tonies.teddystudio.navigationTitle"),
+                undefined,
+                false,
+            );
+        } finally {
+            setPreparingPdfAction(null);
+        }
+    };
+
+    const handlePrintPage = () => handlePdfAction("print");
+    const handleDownloadPdf = () => handlePdfAction("download");
+
     const currentItem = editIndex !== null ? mergedResults[editIndex] : null;
 
     const labelSettingsSummary = `${
@@ -201,7 +279,18 @@ export const TeddyStudio: React.FC = () => {
 
     /** the cut lines of the sheets for a laser cutter: one SVG, or a zip with full sheet and rest */
     const handleCutLines = async () => {
-        const files = cutFiles(settings, mergedResults.length);
+        let files: Record<string, string>;
+        try {
+            files = cutFiles(settings, mergedResults.length);
+        } catch (error) {
+            addNotification(
+                NotificationTypeEnum.Error,
+                t("tonies.teddystudio.cutLines"),
+                error instanceof Error ? error.message : String(error),
+                t("tonies.teddystudio.navigationTitle"),
+            );
+            return;
+        }
         const names = Object.keys(files);
         if (names.length === 1) {
             download(new Blob([files[names[0]]], { type: "image/svg+xml" }), names[0]);
@@ -337,9 +426,29 @@ export const TeddyStudio: React.FC = () => {
                             {t("tonies.teddystudio.cutLines")}
                         </Button>
                         <Button
+                            icon={
+                                preparingPdfAction === "download" ? (
+                                    <LoadingOutlined spin />
+                                ) : (
+                                    <DownloadOutlined />
+                                )
+                            }
+                            disabled={preparingPdfAction !== null}
+                            onClick={handleDownloadPdf}
+                        >
+                            {t("tonies.teddystudio.downloadPdf", { defaultValue: "Download PDF" })}
+                        </Button>
+                        <Button
                             type="primary"
-                            icon={<PrinterOutlined />}
-                            onClick={() => window.print()}
+                            icon={
+                                preparingPdfAction === "print" ? (
+                                    <LoadingOutlined spin />
+                                ) : (
+                                    <PrinterOutlined />
+                                )
+                            }
+                            disabled={preparingPdfAction !== null}
+                            onClick={handlePrintPage}
                         >
                             {t("tonies.teddystudio.printPage")}
                         </Button>
@@ -348,12 +457,6 @@ export const TeddyStudio: React.FC = () => {
             ) : (
                 <Paragraph style={{ marginBottom: 16 }}>{t("tonies.teddystudio.empty")}</Paragraph>
             )}
-            <Alert
-                type="info"
-                closable
-                showIcon
-                title={t("tonies.teddystudio.printMarginNotification")}
-            />
             <LabelGrid
                 mergedResults={mergedResults}
                 settings={settings}

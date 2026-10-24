@@ -42,6 +42,7 @@ import { UserGroups } from "./UserGroups";
 import { useAcl } from "../../../provider/AclProvider";
 import { SecurityEvents } from "./SecurityEvents";
 import { UserDenyButton } from "./UserDenyButton";
+import { UserOwned } from "./UserOwned";
 import { useRightsTree } from "./useRightsTree";
 import { authErrorText, formatTime } from "./authFormat";
 
@@ -526,6 +527,9 @@ export const WebAuthSettings = () => {
                 ]}
                 style={{ marginBottom: 24 }}
             />
+            {acl.admin && users.length > 0 ? (
+                <UserOwned usernames={users.map((u) => u.username)} />
+            ) : null}
 
             <Title level={4}>{t("settings.webAuth.addUser")}</Title>
             <Form

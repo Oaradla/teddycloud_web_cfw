@@ -19,6 +19,9 @@ export type AclMine = {
     boxes: Record<string, AclMineEntry>;
     tonies: Record<string, AclMineEntry>;
     folders: Record<string, AclMineEntry>;
+    /** custom tonies (model name lowercased) and custom_img pictures the user added */
+    models?: Record<string, AclMineEntry>;
+    images?: Record<string, AclMineEntry>;
     unassigned: { tonie?: string; box?: string };
 };
 
@@ -79,6 +82,32 @@ export async function fetchAclMine(): Promise<AclMine> {
         "Could not load permissions",
     );
     return { ...ADMIN_MINE, ...data };
+}
+
+/** custom tonies and pictures a non-admin may change besides the own ones */
+export async function fetchModelsChangeable(): Promise<{ models: string[]; images: string[] }> {
+    const data = await parse(
+        await api.apiGetTeddyCloudApiRaw("/api/toniesCustomJsonChangeable"),
+        "Could not load the custom tonies",
+    );
+    return {
+        models: Array.isArray(data.models) ? data.models : [],
+        images: Array.isArray(data.images) ? data.images : [],
+    };
+}
+
+export type AclOwnedItem = { id: string; owner: boolean; granted?: string };
+export type AclOwned = Record<
+    "boxes" | "tonies" | "folders" | "models" | "images",
+    AclOwnedItem[] | undefined
+>;
+
+/** what belongs to a user or is shared with them (admins only) */
+export async function fetchAclOwned(user: string): Promise<AclOwned> {
+    return parse(
+        await api.apiGetTeddyCloudApiRaw(`/api/acl/owned?user=${encodeURIComponent(user)}`),
+        "Could not load what belongs to the user",
+    );
 }
 
 export async function fetchAclCatalog(): Promise<AclCatalog> {
@@ -142,8 +171,10 @@ export async function fetchAclUsers(): Promise<AclUser[]> {
     return Array.isArray(data.users) ? data.users : [];
 }
 
-/** names of the settings of a box the current user may change */
-export async function fetchBoxSettingNames(overlay: string): Promise<string[]> {
+/** the settings of a box the current user may change, and whether the box has an own value */
+export async function fetchBoxSettingNames(
+    overlay: string,
+): Promise<{ name: string; overlayed: boolean }[]> {
     const data = await parse(
         await api.apiGetTeddyCloudApiRaw(
             `/api/settings/getIndex?overlay=${encodeURIComponent(overlay)}&nolevel=t`,
@@ -151,7 +182,9 @@ export async function fetchBoxSettingNames(overlay: string): Promise<string[]> {
         "Could not load the settings",
     );
     return Array.isArray(data.options)
-        ? data.options.filter((o: any) => o.writable !== false).map((o: any) => String(o.ID))
+        ? data.options
+              .filter((o: any) => o.writable !== false)
+              .map((o: any) => ({ name: String(o.ID), overlayed: Boolean(o.overlayed) }))
         : [];
 }
 

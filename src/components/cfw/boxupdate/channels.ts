@@ -45,3 +45,20 @@ export const esp32Installs = (box: CfwBox) =>
     platformOf(box) === "esp32" &&
     box.update.target !== 0 &&
     box.esp32Delivered !== box.update.target;
+
+/** custom firmware images nobody needs any more: not the newest of their platform and not running,
+ * assigned or next on a box of that platform */
+export const oldImages = (images: CfwImage[], boxes: CfwBox[]) => {
+    const custom = images.filter((image) => !image.original);
+    const newest = (image: CfwImage) =>
+        custom.every(
+            (other) => platformOf(other) !== platformOf(image) || other.build <= image.build,
+        );
+    const used = (image: CfwImage) =>
+        boxes.some(
+            (box) =>
+                platformOf(box) === platformOf(image) &&
+                [box.version, box.update.target, box.update.next].includes(image.build),
+        );
+    return custom.filter((image) => !newest(image) && !used(image));
+};

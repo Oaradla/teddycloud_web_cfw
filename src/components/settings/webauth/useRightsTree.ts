@@ -32,7 +32,14 @@ export function useRightsTree(enabled = true): {
                         cat.boxSettingGroups ?? {},
                     ),
                 );
-                setTonieTree(buildRightsTree(cat.rights, [], ["tonie"]));
+                /* tonies nobody owns cannot be shared */
+                setTonieTree(
+                    buildRightsTree(
+                        cat.rights.filter((r) => r.name !== "tonie.share"),
+                        [],
+                        ["tonie"],
+                    ),
+                );
             })
             .catch((err) => {
                 if (!cancelled) setError(err);

@@ -77,6 +77,8 @@ export interface CreateColumnsOptions {
     showRenameDialog?: (fileName: string) => void;
     showMoveDialog?: (fileName: string) => void;
     showDeleteConfirmDialog?: (fileName: string, fullPath: string, query: string) => void;
+    /** hides the delete action of single rows */
+    canDelete?: (record: Record) => boolean;
     toggleListened?: (record: Record) => void;
     showAssignTonieDialog?: (record: Record) => void;
     buildContentUrl?: (fileName: string, options?: { ogg?: boolean }) => string;
@@ -115,6 +117,7 @@ export const createColumns = (options: CreateColumnsOptions): any[] => {
         showRenameDialog,
         showMoveDialog,
         showDeleteConfirmDialog,
+        canDelete,
         toggleListened,
         showAssignTonieDialog,
         buildContentUrl,
@@ -769,7 +772,11 @@ export const createColumns = (options: CreateColumnsOptions): any[] => {
                     }
                 }
 
-                if (record.name !== ".." && showDeleteConfirmDialog) {
+                if (
+                    record.name !== ".." &&
+                    showDeleteConfirmDialog &&
+                    (canDelete?.(record) ?? true)
+                ) {
                     actions.push(
                         <Tooltip
                             open={!canHover ? false : undefined}
@@ -777,15 +784,17 @@ export const createColumns = (options: CreateColumnsOptions): any[] => {
                             title={t("fileBrowser.delete")}
                         >
                             <DeleteOutlined
-                                onClick={() =>
+                                onClick={(event) => {
+                                    // in the select mode a row click selects the row
+                                    event.stopPropagation();
                                     showDeleteConfirmDialog(
                                         record.name,
                                         path + "/" + record.name,
                                         "?special=" +
                                             special +
                                             (overlay ? `&overlay=${overlay}` : ""),
-                                    )
-                                }
+                                    );
+                                }}
                                 style={{
                                     margin: "4px 8px 4px 0",
                                     padding: 4,

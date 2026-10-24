@@ -9,6 +9,7 @@ import {
     DownloadOutlined,
     EditOutlined,
     InfoCircleOutlined,
+    LoadingOutlined,
     PlayCircleOutlined,
     RetweetOutlined,
     StopOutlined,
@@ -33,7 +34,7 @@ import { useTonieCardActions } from "./hooks/useTonieCardActions";
 import { useTooltipInfoByModel } from "./hooks/useTooltipInfoByModel";
 import { getInfoForTooltip } from "./utils/tooltipInfo";
 import { useTonieCardSaveFlow } from "./hooks/useTonieCardSaveFlow";
-import { TooltipInfo, ValidateStatus } from "./TonieCardTypes";
+import { TooltipInfo, ValidateStatus } from "../../../types/tonieCardTypes";
 import { backendUrl } from "../../../utils/basePath";
 import { locateModelAudioInLibrary } from "../../../utils/teddycloud/modelAudioResolution";
 
@@ -242,7 +243,12 @@ export const TonieCard: React.FC<{
         overlay,
     });
 
-    const { handleLiveClick, handleNoCloudClick, handleBackgroundDownload } = useTonieCardActions({
+    const {
+        handleLiveClick,
+        handleNoCloudClick,
+        handleBackgroundDownload,
+        isBackgroundDownloading,
+    } = useTonieCardActions({
         tonieCard,
         overlay,
         modelTitle,
@@ -496,6 +502,8 @@ export const TonieCard: React.FC<{
                         <DownloadOutlined />
                     </div>
                 </Tooltip>
+            ) : isBackgroundDownloading ? (
+                <LoadingOutlined key="download" spin />
             ) : (
                 <DownloadOutlined key="download" onClick={handleBackgroundDownload} />
             )
@@ -738,7 +746,9 @@ export const TonieCard: React.FC<{
                     onSetAudioFromModel={handleSetAudioFromModel}
                     isLocatingModelAudio={isLocatingModelAudio}
                     modelDisplayText={selectedModelDisplayText}
-                    onCreateNewModel={() => setIsCreateModelModalOpen(true)}
+                    onCreateNewModel={
+                        acl.canCreateModels ? () => setIsCreateModelModalOpen(true) : undefined
+                    }
                     onEditModel={() => setIsEditModelModalOpen(true)}
                     isSelectedModelCustom={isSelectedModelCustom}
                     modelReadOnly={false}

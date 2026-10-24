@@ -14,6 +14,8 @@ import {
     type AclUser,
 } from "../../../utils/auth/aclApi";
 import { authErrorText } from "../../settings/webauth/authFormat";
+import { shownInBoxDialog } from "../../cfw/cfwSettingsVisibility";
+import { useCfwBoxDialog } from "../../cfw/useCfwBoxDialog";
 
 const { Text } = Typography;
 
@@ -59,7 +61,16 @@ export const ShareDialog = ({
     const [rows, setRows] = useState<Row[]>([]);
     const [users, setUsers] = useState<AclUser[]>([]);
     const [rights, setRights] = useState<string[]>([]);
-    const [settingNames, setSettingNames] = useState<string[]>([]);
+    const [boxSettings, setBoxSettings] = useState<{ name: string; overlayed: boolean }[]>([]);
+    /* only what the settings dialog of this box shows */
+    const cfw = useCfwBoxDialog(type === "box" ? id : "", false);
+    const settingNames = useMemo(
+        () =>
+            boxSettings
+                .filter((s) => shownInBoxDialog(s.name, cfw, s.overlayed))
+                .map((s) => s.name),
+        [boxSettings, cfw.enabled, cfw.isCfwBox, cfw.forced],
+    );
     const [inherited, setInherited] = useState<string | undefined>(undefined);
 
     useEffect(() => {
@@ -97,7 +108,7 @@ export const ShareDialog = ({
                         )
                         .map((r) => r.name),
                 );
-                setSettingNames(names);
+                setBoxSettings(names);
             } catch (err) {
                 if (!cancelled) setError(authErrorText(t, err));
             } finally {
@@ -238,7 +249,13 @@ export const ShareDialog = ({
                                         value={row.settings}
                                         onChange={(settings) => update(index, { settings })}
                                         placeholder={t("sharing.singleSettings")}
-                                        options={settingNames.map((n) => ({ value: n, label: n }))}
+                                        options={settingNames.map((n) => ({
+                                            value: n,
+                                            label: t(
+                                                `settings.options.${n.replace(/\./g, "_")}.label`,
+                                                n,
+                                            ),
+                                        }))}
                                     />
                                 ) : null}
                             </Flex>
