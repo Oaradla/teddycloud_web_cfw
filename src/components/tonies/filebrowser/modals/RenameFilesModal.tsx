@@ -45,10 +45,14 @@ const RenameFileModal: React.FC<RenameFileModalProps> = ({
     const [hasInvalidChars, setHasInvalidChars] = useState<boolean>(false);
     const [hasError, setHasError] = useState<boolean>(true);
     const [isUnchangedOrEmpty, setIsUnchangedOrEmpty] = useState<boolean>(true);
+    // a deep search names entries by their path from here: only the name itself is renamed
+    const nameAt = (currentFile ?? "").lastIndexOf("/") + 1;
+    const folder = (currentFile ?? "").slice(0, nameAt);
+    const fileName = (currentFile ?? "").slice(nameAt);
 
     useEffect(() => {
         if (open) {
-            const value = currentFile ?? "";
+            const value = fileName;
             const invalid = !isInputValid(value);
             setHasInvalidChars(invalid);
             setHasError(true); // bis User tippt
@@ -107,7 +111,7 @@ const RenameFileModal: React.FC<RenameFileModalProps> = ({
 
     const handleOk = async () => {
         const newFileName =
-            inputRef.current && inputRef.current.input ? inputRef.current.input.value : currentFile;
+            inputRef.current && inputRef.current.input ? inputRef.current.input.value : fileName;
 
         if (!currentFile || !newFileName) {
             onClose();
@@ -115,7 +119,7 @@ const RenameFileModal: React.FC<RenameFileModalProps> = ({
         }
 
         const source = decodeURIComponent(path) + "/" + currentFile;
-        const target = decodeURIComponent(path) + "/" + newFileName;
+        const target = decodeURIComponent(path) + "/" + folder + newFileName;
 
         await moveRenameFile(source, target);
         setRebuildList((prev) => !prev);
@@ -129,7 +133,7 @@ const RenameFileModal: React.FC<RenameFileModalProps> = ({
 
         setHasInvalidChars(invalid);
         setHasError(errorDetected);
-        setIsUnchangedOrEmpty(!value || value === currentFile);
+        setIsUnchangedOrEmpty(!value || value === fileName);
     };
 
     const isRenameButtonDisabled = isUnchangedOrEmpty || hasInvalidChars || hasError;
@@ -173,9 +177,9 @@ const RenameFileModal: React.FC<RenameFileModalProps> = ({
                     <Input
                         ref={inputRef}
                         type="text"
-                        defaultValue={currentFile ?? ""}
+                        defaultValue={fileName}
                         onChange={handleInputChange}
-                        placeholder={currentFile ?? ""}
+                        placeholder={fileName}
                         status={hasInvalidChars ? "error" : ""}
                     />
                 </Form.Item>

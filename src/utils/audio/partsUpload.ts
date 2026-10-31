@@ -142,16 +142,27 @@ const saveTap = async (
     return { path: join(dir, fileName), audioId: tap.audio_id };
 };
 
-/** runs fn for every item, at most limit at the same time */
+/** the browser could not encode; the server may do it instead */
+export class BrowserEncodeError extends Error {}
+
+/** runs fn for every item, at most limit at the same time; on an error the running ones end first */
 async function limited<T>(items: T[], limit: number, fn: (item: T, i: number) => Promise<void>) {
     let next = 0;
+    let failed = false;
     const worker = async () => {
-        while (next < items.length) {
+        while (!failed && next < items.length) {
             const i = next++;
-            await fn(items[i], i);
+            await fn(items[i], i).catch((e) => {
+                failed = true;
+                throw e;
+            });
         }
     };
-    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+    const results = await Promise.allSettled(
+        Array.from({ length: Math.min(limit, items.length) }, worker),
+    );
+    const error = results.find((r) => r.status === "rejected");
+    if (error) throw error.reason;
 }
 
 /** encodes the files as single TAFs into dir, named partName(i) */
@@ -161,7 +172,9 @@ async function makeParts(job: PartsJob, dir: string, partName: (i: number) => st
     if (job.encoder === "browser") {
         const parts = await encodeFilesParallel(job.files, baseId, job.bitrate, (f, done) =>
             step({ kind: "encoding", done, total }, f * 0.8),
-        );
+        ).catch((e) => {
+            throw new BrowserEncodeError(e instanceof Error ? e.message : String(e));
+        });
         let up = 0;
         await limited(parts, 3, async (taf, i) => {
             await tafUpload(taf, partName(i), dir);

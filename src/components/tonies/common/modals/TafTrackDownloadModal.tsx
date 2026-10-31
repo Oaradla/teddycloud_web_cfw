@@ -1,15 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Checkbox, Flex, Modal, Table, theme } from "antd";
+import { Button, Checkbox, Flex, Modal, Segmented, Table, theme } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { DownloadOutlined, LoadingOutlined, PlayCircleOutlined } from "@ant-design/icons";
 import styled from "styled-components";
+import JSZip from "jszip";
 
 import {
     buildTafDownloadUrl,
+    fetchDownloadBlob,
+    saveBlob,
     triggerBrowserDownload,
 } from "../../../../utils/downloads/tafDownload";
 import { padTrackNumber, sanitizeDownloadName } from "../../../../utils/files/sanitizeDownloadName";
+import { useTeddyCloud } from "../../../../provider/TeddyCloudProvider";
+import { NotificationTypeEnum } from "../../../../types/teddyCloudNotificationTypes";
 
 const { useToken } = theme;
 
@@ -77,12 +82,22 @@ export const TafDownloadPanel: React.FC<TafDownloadPanelProps> = ({
     const [selectedKeys, setSelectedKeys] = useState<number[]>([]);
     const [downloadingWholeFile, setDownloadingWholeFile] = useState(false);
     const [downloadingSelected, setDownloadingSelected] = useState(false);
+    const [format, setFormat] = useState<"ogg" | "mp3">("ogg");
+    const [several, setSeveral] = useState<"zip" | "single">("zip");
 
     useEffect(() => {
         setSelectedKeys([]);
     }, [selectionScope]);
 
     const downloadBase = sanitizeDownloadName(baseFilename || "download");
+    const { addNotification } = useTeddyCloud();
+    const notifyFailed = (file: string, error: unknown) =>
+        addNotification(
+            NotificationTypeEnum.Error,
+            t("fileBrowser.messages.downloadFailed"),
+            `${t("fileBrowser.messages.downloadFailedDetails", { file })}: ${error instanceof Error ? error.message : String(error)}`,
+            t("tonies.tafDownload.modalTitle"),
+        );
 
     const downloadWholeFile = async () => {
         if (downloadingWholeFile) {
@@ -91,7 +106,12 @@ export const TafDownloadPanel: React.FC<TafDownloadPanelProps> = ({
 
         setDownloadingWholeFile(true);
         try {
-            await triggerBrowserDownload(buildTafDownloadUrl(contentUrl), `${downloadBase}.ogg`);
+            await triggerBrowserDownload(
+                buildTafDownloadUrl(contentUrl, { format }),
+                `${downloadBase}.${format}`,
+            );
+        } catch (error) {
+            notifyFailed(`${downloadBase}.${format}`, error);
         } finally {
             setDownloadingWholeFile(false);
         }
@@ -109,26 +129,70 @@ export const TafDownloadPanel: React.FC<TafDownloadPanelProps> = ({
         const entries = selected.map((track) => {
             const title =
                 track.title || t("tonies.tafDownload.unnamedTrack", { number: track.number });
-            return `${padTrackNumber(track.number)} ${sanitizeDownloadName(title)}.ogg`;
+            return `${padTrackNumber(track.number)} ${sanitizeDownloadName(title)}.${format}`;
         });
-        const filename = selected.length === 1 ? entries[0] : `${downloadBase}.zip`;
+        const trackUrl = (number: number) =>
+            buildTafDownloadUrl(contentUrl, { tracks: [number], format });
 
         setDownloadingSelected(true);
         try {
-            await triggerBrowserDownload(
-                buildTafDownloadUrl(contentUrl, {
-                    tracks: selected.map((track) => track.number),
-                }),
-                filename,
-            );
+            if (selected.length === 1 || several === "single") {
+                for (let i = 0; i < selected.length; i++) {
+                    await triggerBrowserDownload(trackUrl(selected[i].number), entries[i]);
+                }
+            } else if (format === "ogg") {
+                await triggerBrowserDownload(
+                    buildTafDownloadUrl(contentUrl, {
+                        tracks: selected.map((track) => track.number),
+                    }),
+                    `${downloadBase}.zip`,
+                );
+            } else {
+                // the server encodes one MP3 at a time, the zip is packed here
+                const zip = new JSZip();
+                for (let i = 0; i < selected.length; i++) {
+                    zip.file(entries[i], await fetchDownloadBlob(trackUrl(selected[i].number)));
+                }
+                saveBlob(await zip.generateAsync({ type: "blob" }), `${downloadBase}.zip`);
+            }
+        } catch (error) {
+            notifyFailed(selected.length === 1 ? entries[0] : `${downloadBase}.zip`, error);
         } finally {
             setDownloadingSelected(false);
         }
     };
 
+    const choices = (
+        <Flex gap={8} wrap="wrap" align="center">
+            <span>{t("tonies.tafDownload.format")}</span>
+            <Segmented
+                value={format}
+                onChange={(value) => setFormat(value as "ogg" | "mp3")}
+                options={[
+                    { value: "ogg", label: "OGG" },
+                    { value: "mp3", label: "MP3" },
+                ]}
+            />
+            {canSplit && (
+                <>
+                    <span>{t("tonies.tafDownload.several")}</span>
+                    <Segmented
+                        value={several}
+                        onChange={(value) => setSeveral(value as "zip" | "single")}
+                        options={[
+                            { value: "zip", label: t("tonies.tafDownload.asZip") },
+                            { value: "single", label: t("tonies.tafDownload.singleFiles") },
+                        ]}
+                    />
+                </>
+            )}
+        </Flex>
+    );
+
     if (!canSplit) {
         return (
             <Flex vertical gap={8} style={{ marginTop: 8 }}>
+                {choices}
                 {tracks.map((track) => (
                     <Flex key={track.number} gap={16} align="center" style={{ textAlign: "left" }}>
                         {onPlayTrack ? (
@@ -148,7 +212,7 @@ export const TafDownloadPanel: React.FC<TafDownloadPanelProps> = ({
                     onClick={downloadWholeFile}
                     block
                 >
-                    {t("tonies.tafDownload.asOneFile")}
+                    {t("tonies.tafDownload.asOneFile", { format })}
                 </Button>
             </Flex>
         );
@@ -197,6 +261,7 @@ export const TafDownloadPanel: React.FC<TafDownloadPanelProps> = ({
 
     return (
         <Flex vertical gap={12} style={{ marginTop: 8 }}>
+            {choices}
             <TrackTableWrap>
                 <Table<TafDownloadTrack>
                     size="small"
@@ -262,7 +327,7 @@ export const TafDownloadPanel: React.FC<TafDownloadPanelProps> = ({
                     disabled={downloadingWholeFile}
                     onClick={downloadWholeFile}
                 >
-                    {t("tonies.tafDownload.asOneFile")}
+                    {t("tonies.tafDownload.asOneFile", { format })}
                 </Button>
                 <Button
                     type="primary"
@@ -271,8 +336,11 @@ export const TafDownloadPanel: React.FC<TafDownloadPanelProps> = ({
                     onClick={downloadSelected}
                 >
                     {selectedKeys.length === 1
-                        ? t("tonies.tafDownload.downloadOne")
-                        : t("tonies.tafDownload.downloadCount", { count: selectedKeys.length })}
+                        ? t("tonies.tafDownload.downloadOne", { format })
+                        : t("tonies.tafDownload.downloadCount", {
+                              count: selectedKeys.length,
+                              format,
+                          })}
                 </Button>
             </Flex>
         </Flex>

@@ -18,6 +18,9 @@ import { canHover } from "../../../../utils/browser/browserUtils";
 const { useToken } = theme;
 const api = new TeddyCloudApi(defaultAPIConfig());
 
+/** a deep search names entries by their path from the listed folder; moved is the file itself */
+const baseName = (name: string) => name.slice(name.lastIndexOf("/") + 1);
+
 interface MoveFilesModalProps {
     open: boolean;
     onClose: () => void;
@@ -152,7 +155,7 @@ const MoveFilesModal: React.FC<MoveFilesModalProps> = ({
 
         const source = decodeURIComponent(path) + "/" + currentFile;
         const targetDir = directoryTree.getPathFromNodeId(directoryTree.treeNodeId);
-        const target = targetDir + "/" + currentFile;
+        const target = targetDir + "/" + baseName(currentFile);
 
         await moveRenameFile(source, target, true);
         setRebuildList((prev) => !prev);
@@ -184,7 +187,7 @@ const MoveFilesModal: React.FC<MoveFilesModalProps> = ({
             const file = files.find((f) => f.name === rowName);
             if (file && !file.isDir) {
                 const source = decodeURIComponent(path) + "/" + file.name;
-                const target = targetDir + "/" + file.name;
+                const target = targetDir + "/" + baseName(file.name);
                 await moveRenameFile(source, target, true, true);
             }
         }

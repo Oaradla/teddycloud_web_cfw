@@ -8,7 +8,8 @@ import { splitTafToPlaylist, TafSplitResult } from "../../../../utils/playlist/t
 
 interface UseTafSplitParams {
     path: string;
-    onSplit: (result: TafSplitResult) => void;
+    /** file: the split TAF as the list names it */
+    onSplit: (result: TafSplitResult, file: string) => void;
 }
 
 /** turns a TAF into a folder with one TAF per chapter and a playlist putting them together */
@@ -41,7 +42,7 @@ export function useTafSplit({ path, onSplit }: UseTafSplitParams) {
                 t("fileBrowser.title"),
             );
             setTafSplitRecord(null);
-            onSplit(result);
+            onSplit(result, file);
         } catch (err: any) {
             addNotification(
                 NotificationTypeEnum.Error,

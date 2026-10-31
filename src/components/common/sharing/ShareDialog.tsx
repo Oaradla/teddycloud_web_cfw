@@ -218,7 +218,11 @@ export const ShareDialog = ({
                                         value={row.user || undefined}
                                         placeholder={t("sharing.pickUser")}
                                         onChange={(user) => update(index, { user })}
-                                        options={userOptions}
+                                        options={userOptions.filter(
+                                            (o) =>
+                                                o.value === row.user ||
+                                                !rows.some((r) => r.user === o.value),
+                                        )}
                                         showSearch
                                     />
                                     <Button
@@ -235,7 +239,13 @@ export const ShareDialog = ({
                                 <Checkbox.Group
                                     value={row.rights}
                                     onChange={(values) =>
-                                        update(index, { rights: values as string[] })
+                                        update(index, {
+                                            // rights without a checkbox here (e.g. "box.*" set by an admin) stay
+                                            rights: [
+                                                ...row.rights.filter((r) => !rights.includes(r)),
+                                                ...(values as string[]),
+                                            ],
+                                        })
                                     }
                                     options={rights.map((r) => ({
                                         value: r,

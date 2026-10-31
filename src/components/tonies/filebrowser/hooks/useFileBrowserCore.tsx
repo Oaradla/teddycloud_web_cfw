@@ -183,7 +183,7 @@ export const useFileBrowserCore = ({
         if (deepSearchActive) {
             // everything below the folder, named by its path from here, so the actions work as usual
             const rawPath = mode === "fileBrowser" ? decodeURIComponent(path) : path;
-            const walk = async (relative: string): Promise<Record[]> => {
+            const list = async (relative: string): Promise<Record[]> => {
                 const response = await api.apiGetTeddyCloudApiRaw(
                     `/api/fileIndexV2?path=${encodeURIComponent(rawPath + (relative ? "/" + relative : ""))}&special=${special}` +
                         (overlay ? `&overlay=${overlay}` : ""),
@@ -191,19 +191,30 @@ export const useFileBrowserCore = ({
                     { signal: abortController.signal },
                 );
                 if (!response.ok) return [];
-                const entries = (((await response.json()).files || []) as Record[]).filter(
+                return (((await response.json()).files || []) as Record[]).filter(
                     (entry) => entry.name !== "." && entry.name !== "..",
                 );
-                const below = await Promise.all(
-                    entries.map(async (entry) => {
-                        const name = relative ? `${relative}/${entry.name}` : entry.name;
-                        return [{ ...entry, name }, ...(entry.isDir ? await walk(name) : [])];
-                    }),
-                );
-                return below.flat();
+            };
+            // folder by folder, at most four requests at a time: a big library must not flood the server
+            const walk = async (): Promise<Record[]> => {
+                const all: Record[] = [];
+                const folders = [""];
+                while (folders.length > 0) {
+                    const batch = folders.splice(0, 4);
+                    const lists = await Promise.all(batch.map(list));
+                    lists.forEach((entries, i) =>
+                        entries.forEach((entry) => {
+                            const name = batch[i] ? `${batch[i]}/${entry.name}` : entry.name;
+                            all.push({ ...entry, name });
+                            // not deeper than 16 folders: a folder linked into itself must end
+                            if (entry.isDir && name.split("/").length < 16) folders.push(name);
+                        }),
+                    );
+                }
+                return all;
             };
             setLoading(true);
-            walk("")
+            walk()
                 .then((all) => isCurrentRequest() && setFiles(all.filter(keepEntry)))
                 .catch(() => undefined)
                 .finally(() => isCurrentRequest() && setLoading(false));
@@ -474,7 +485,7 @@ export const useFileBrowserCore = ({
 
         if (mode === "fileBrowser") {
             const decodedParts = path ? path.split("/").map(decodeURIComponent) : [];
-            return [...decodedParts, dirPath].map(encodeURIComponent).join("/");
+            return [...decodedParts, ...dirPath.split("/")].map(encodeURIComponent).join("/");
         }
         return path ? `${path}/${dirPath}` : dirPath;
     };

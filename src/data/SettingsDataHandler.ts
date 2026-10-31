@@ -3,6 +3,7 @@ import { t, TFunction } from "i18next";
 import { TeddyCloudApi } from "../api/apis/TeddyCloudApi";
 import { defaultAPIConfig } from "../config/defaultApiConfig";
 import { NotificationTypeEnum } from "../types/teddyCloudNotificationTypes";
+import { writeConfig } from "../utils/settings/writeConfig";
 
 export interface Setting {
     description: string;
@@ -104,10 +105,6 @@ export default class SettingsDataHandler {
     }
 
     public async saveAll() {
-        const triggerWriteConfig = async () => {
-            await api.apiTriggerWriteConfigGet();
-        };
-
         const savePromises = this.settings.map(async (setting) => {
             if (
                 setting.initialValue !== setting.value ||
@@ -119,7 +116,7 @@ export default class SettingsDataHandler {
 
         try {
             await Promise.all(savePromises);
-            await triggerWriteConfig();
+            await writeConfig();
             this.settings.forEach((setting) => {
                 setting.initialValue = setting.value;
                 setting.initialOverlayed =

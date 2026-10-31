@@ -25,6 +25,7 @@ import { useDirectoryTree } from "../../common/hooks/useDirectoryTree";
 import { splitTafToPlaylist } from "../../../../utils/playlist/tapApi";
 import { CoverInfo, languageOf, saveCoverModel, TafHeader, trackTitle } from "../utils/coverModel";
 import {
+    BrowserEncodeError,
     Encoder,
     hasTapBuild,
     PartsStep,
@@ -390,7 +391,7 @@ export const useEncoder = () => {
             try {
                 result = await uploadInParts(job, step);
             } catch (err) {
-                if (encoder === "server") throw err;
+                if (!(err instanceof BrowserEncodeError)) throw err;
                 // the browser could not encode (old browser, no memory): the server does it
                 addNotification(
                     NotificationTypeEnum.Info,

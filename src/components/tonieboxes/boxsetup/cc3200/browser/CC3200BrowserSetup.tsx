@@ -20,7 +20,7 @@ import { cfwApi } from "../../../../../api/cfwApi";
 import { useTeddyCloud } from "../../../../../provider/TeddyCloudProvider";
 import { NotificationTypeEnum } from "../../../../../types/teddyCloudNotificationTypes";
 import nwpBootloaderUrl from "./rbtl3100s.dll?url";
-import { Cc3200, ResetMode } from "./protocol";
+import { Cc3200, Cc3200Error, ResetMode } from "./protocol";
 import { macOfCertificate, packageFiles, saveZip } from "./cc3200Package";
 import { CC3200SdCard, useCc3200Releases } from "./CC3200SdCard";
 import { StatusLine, StepResult } from "./StatusLine";
@@ -29,6 +29,10 @@ const { Paragraph, Text } = Typography;
 
 const equal = (a: Uint8Array, b: Uint8Array) =>
     a.length === b.length && a.every((x, i) => x === b[i]);
+
+/** a HackieboxNG preloader names the SD bootloader it starts; the box's original bootloader does not */
+const isPreloader = (image: Uint8Array) =>
+    new TextDecoder("latin1").decode(image).includes("/revvox/boot/ngbootloader.bin");
 
 const k = "tonieboxes.cc3200BoxFlashing.browser.";
 
@@ -75,6 +79,7 @@ export function CC3200BrowserSetup({ onShowBoxes }: { onShowBoxes: () => void })
     const [bootloaderDone, setBootloaderDone] = useState(false);
 
     useBusyGuard(busy);
+    useEffect(() => () => void box.current?.close(), []);
     const addLog = (line: string) => setLog((l) => [...l.slice(-300), line]);
     const notify = (type: "success" | "error", text: string) =>
         addNotification(
@@ -94,7 +99,10 @@ export function CC3200BrowserSetup({ onShowBoxes }: { onShowBoxes: () => void })
             const done = await what();
             if (done) setResult({ ok: true, text: done });
         } catch (e) {
-            const message = (e as Error).message;
+            const message =
+                e instanceof Cc3200Error
+                    ? t(k + "errors." + e.key, e.values)
+                    : (e as Error).message;
             addLog(`error: ${message}`);
             notify("error", message);
             setResult({ ok: false, text: message });
@@ -121,12 +129,21 @@ export function CC3200BrowserSetup({ onShowBoxes }: { onShowBoxes: () => void })
             });
             box.current = cc;
             setConnected(true);
+            // closed on a failed read, so that Connect reads again
+            const closeOnError = async (e: unknown): Promise<never> => {
+                await disconnect();
+                throw e;
+            };
             setStatus(t(k + "readingFlash"));
-            const flash = await cc.readFlash((done, total) => setProgress(done / total));
-            const all = await cc.readAllFiles((name, i, n) => {
-                setStatus(t(k + "readingFile", { name, i: i + 1, n }));
-                setProgress((i + 1) / n);
-            });
+            const flash = await cc
+                .readFlash((done, total) => setProgress(done / total))
+                .catch(closeOnError);
+            const all = await cc
+                .readAllFiles((name, i, n) => {
+                    setStatus(t(k + "readingFile", { name, i: i + 1, n }));
+                    setProgress((i + 1) / n);
+                })
+                .catch(closeOnError);
             backup.current = { flash, files: all.files };
             setFailed(all.failed);
             const client = all.files.get("/cert/client.der");
@@ -167,7 +184,8 @@ export function CC3200BrowserSetup({ onShowBoxes }: { onShowBoxes: () => void })
                 data: files.get(`/cert/${name}`),
             }));
             const missing = certs.filter((c) => !c.data).map((c) => c.name);
-            if (missing.length) throw new Error(`missing on the box: ${missing.join(", ")}`);
+            if (missing.length)
+                throw new Error(t(k + "errors." + "certsMissing", { names: missing.join(", ") }));
             await cfwApi.uploadCertsByMac(mac, certs as { name: string; data: Uint8Array }[]);
             addLog(`certificates stored for ${mac}`);
             await box.current!.writeFile("/cert/c2.der", await cfwApi.caReplacement());
@@ -192,17 +210,18 @@ export function CC3200BrowserSetup({ onShowBoxes }: { onShowBoxes: () => void })
             const preloader = (
                 await packageFiles(await cfwApi.package(release!.build), "cc3200/flash/")
             )["sys/mcuimg.bin"];
-            if (!preloader) throw new Error("the package has no preloader");
+            if (!preloader) throw new Error(t(k + "errors." + "noPreloader"));
             const current = backup.current!.files.get("/sys/mcuimg.bin");
-            if (await cc.exists("/sys/pre-img.bin")) {
-                // HackieboxNG is there: /sys/mcuimg.bin is its preloader already, the original stays in pre-img.bin
+            if (!current) throw new Error(t(k + "errors." + "noMcuimg"));
+            if (isPreloader(current)) {
+                // HackieboxNG is there: the original stays in pre-img.bin
                 addLog(t(k + "hasHackiebox"));
-                if (current && equal(current, preloader)) {
+                if (equal(current, preloader)) {
                     setBootloaderDone(true);
                     return t(k + "bootloaderUpToDate");
                 }
             } else {
-                if (!current) throw new Error("/sys/mcuimg.bin was not in the backup");
+                // also over a pre-img.bin an earlier, failed run left behind
                 await cc.writeFile("/sys/pre-img.bin", current);
                 addLog("original bootloader moved to /sys/pre-img.bin");
             }

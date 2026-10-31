@@ -28,7 +28,15 @@ import {
     formatBuild,
     formatTime,
 } from "../../../api/cfwApi";
-import { CHANNEL_COLOR, CHANNELS, channelKey, imageLabel, oldImages, platformOf } from "./channels";
+import {
+    CHANNEL_COLOR,
+    CHANNELS,
+    channelKey,
+    imageLabel,
+    oldImages,
+    platformOf,
+    usedBy,
+} from "./channels";
 import { useNotify } from "./useNotify";
 import { cfwMessage } from "../cfwMessages";
 
@@ -82,17 +90,32 @@ export const LibraryCard: React.FC<LibraryCardProps> = ({
         await onChanged();
     };
 
+    const inUse = (list: CfwImage[]) =>
+        [...new Set(list.flatMap((image) => usedBy(image, boxes ?? [])))]
+            .map((box) => box.boxName || box.commonName)
+            .join(", ");
+
     const deleteButton = (list: CfwImage[], label: string) => (
         <Popconfirm
             title={t("cfw.update.deleteManyConfirm", { n: list.length })}
             description={
-                <ul style={{ margin: 0, paddingLeft: 20, maxHeight: 240, overflow: "auto" }}>
-                    {list.map((image) => (
-                        <li key={imageKey(image)}>
-                            {imageLabel(image, t(`cfw.update.platformName.${platformOf(image)}`))}
-                        </li>
-                    ))}
-                </ul>
+                <>
+                    <ul style={{ margin: 0, paddingLeft: 20, maxHeight: 240, overflow: "auto" }}>
+                        {list.map((image) => (
+                            <li key={imageKey(image)}>
+                                {imageLabel(
+                                    image,
+                                    t(`cfw.update.platformName.${platformOf(image)}`),
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                    {inUse(list) && (
+                        <Text type="warning">
+                            {t("cfw.update.imagesInUse", { boxes: inUse(list) })}
+                        </Text>
+                    )}
+                </>
             }
             onConfirm={() => deleteImages(list)}
         >

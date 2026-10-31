@@ -164,10 +164,8 @@ const TeddyAudioPlaylistEditor: React.FC<TeddyAudioPlaylistEditorProps> = ({
         let cancelled = false;
 
         const load = async () => {
-            if (!initialValuesPath) {
-                setInitialValuesObj(null);
-                return;
-            }
+            setInitialValuesObj(null);
+            if (!initialValuesPath) return;
 
             try {
                 const normalized = ensureLeadingSlash(initialValuesPath);

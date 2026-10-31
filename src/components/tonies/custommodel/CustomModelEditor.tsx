@@ -1132,7 +1132,7 @@ export const CustomModelEditor: React.FC<CustomModelEditorProps> = ({
                         </div>
                         <ImageOptimizerModal
                             open={optimizerOpen}
-                            entries={persistedEntries}
+                            entries={persistedEntries.filter((e) => acl.mayChangeModel(e.model))}
                             onClose={() => setOptimizerOpen(false)}
                             onSave={(entry) => postJson("/api/toniesCustomJsonUpsert", entry)}
                             onDone={() => void loadJsonData()}

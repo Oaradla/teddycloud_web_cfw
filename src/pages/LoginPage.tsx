@@ -23,6 +23,7 @@ export const LoginPage = ({ themeSwitch }: { themeSwitch: ReactNode }) => {
         needsTwoFactorSetup,
         needsPasswordChange,
         passwordMinLength,
+        twoFactorEnabled,
         username,
         refresh,
         logout,
@@ -60,6 +61,9 @@ export const LoginPage = ({ themeSwitch }: { themeSwitch: ReactNode }) => {
             }
             if (err.code === "busy") {
                 return t("auth.loginBusy");
+            }
+            if (err.code === "lan_only") {
+                return t("auth.loginLanOnly");
             }
             if (err.code === "forbidden" || err.code === "https_required") {
                 return err.message;
@@ -104,11 +108,21 @@ export const LoginPage = ({ themeSwitch }: { themeSwitch: ReactNode }) => {
         }
     };
 
-    const onPasswordChange = async (values: { password: string; newPassword: string }) => {
+    const onPasswordChange = async (values: {
+        password: string;
+        newPassword: string;
+        code?: string;
+    }) => {
         setError(null);
         setSubmitting(true);
         try {
-            await changeAuthPassword(username, values.newPassword, values.password);
+            await changeAuthPassword(
+                username,
+                values.newPassword,
+                values.password,
+                undefined,
+                values.code,
+            );
             await refresh();
         } catch (err) {
             setError(authErrorText(t, err));
@@ -170,6 +184,19 @@ export const LoginPage = ({ themeSwitch }: { themeSwitch: ReactNode }) => {
                             style={{ minHeight: 44 }}
                         />
                     </Form.Item>
+                    {twoFactorEnabled ? (
+                        <Form.Item
+                            name="code"
+                            label={t("settings.webAuth.twoFactor.codeOrRecovery")}
+                            rules={[{ required: true, message: t("auth.twoFactorCodeInvalid") }]}
+                        >
+                            <Input
+                                prefix={<SafetyOutlined />}
+                                autoComplete="one-time-code"
+                                style={{ minHeight: 44 }}
+                            />
+                        </Form.Item>
+                    ) : null}
                     <Form.Item
                         name="newPassword"
                         label={t("auth.newPassword")}

@@ -18,6 +18,7 @@ const rights = [
     r("tonie.edit"),
     r("folder.read"),
     r("users.manage"),
+    r("model.create"),
     r("system.settings", true),
 ];
 const settings = [{ id: "cloud.enabled" }, { id: "cloud.cacheContent" }, { id: "toniebox.slap" }];
@@ -30,6 +31,7 @@ describe("rights tree", () => {
             "tonie.*",
             "folder.read",
             "users.manage",
+            "model.create",
         ]);
         const boxSettings = tree.children?.[0].children?.find((n) => n.key === "box.settings");
         expect(boxSettings?.children?.map((n) => n.key)).toEqual([

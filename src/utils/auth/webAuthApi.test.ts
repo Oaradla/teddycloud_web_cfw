@@ -328,6 +328,24 @@ describe("webAuthApi", () => {
             );
         });
 
+        it("sends the 2FA code with the own password change", async () => {
+            apiMock.apiPostTeddyCloudJsonRaw.mockImplementation(async () =>
+                jsonResponse({ sessionsRevoked: 0 }),
+            );
+
+            await changeAuthPassword("bob", "new-secret", "old-secret", undefined, "123 456");
+
+            expect(apiMock.apiPostTeddyCloudJsonRaw).toHaveBeenCalledWith(
+                "/api/auth/users/updatePassword",
+                {
+                    username: "bob",
+                    password: "new-secret",
+                    currentPassword: "old-secret",
+                    code: "123456",
+                },
+            );
+        });
+
         it("tells a TOTP code from a recovery code when confirming", async () => {
             apiMock.apiPostTeddyCloudJsonRaw.mockImplementation(async () =>
                 jsonResponse({ recoveryCodes: ["A"] }),

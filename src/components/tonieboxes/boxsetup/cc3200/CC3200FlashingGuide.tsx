@@ -164,7 +164,10 @@ export const CC3200BoxFlashingGuide: React.FC = () => {
                 ]}
             />
 
-            {way === "browser" && <CC3200BrowserSetup onShowBoxes={showAvailableBoxesModal} />}
+            {/* kept while another way is shown: the box may still be connected or written to */}
+            <div style={{ display: way === "browser" ? undefined : "none" }}>
+                <CC3200BrowserSetup onShowBoxes={showAvailableBoxesModal} />
+            </div>
             {way === "card" && (
                 <>
                     <Paragraph>{t("tonieboxes.cc3200BoxFlashing.browser.cardOnlyText")}</Paragraph>

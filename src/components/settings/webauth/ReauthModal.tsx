@@ -25,7 +25,12 @@ export const ReauthModal = ({ twoFactor }: { twoFactor: boolean }) => {
                     setOpen(true);
                 }),
         );
-        return () => registerReauthHandler(null);
+        return () => {
+            registerReauthHandler(null);
+            // a dialog closed by a logout answers no, or later requests would wait for it for good
+            resolver.current?.(false);
+            resolver.current = null;
+        };
     }, [form]);
 
     const finish = (ok: boolean) => {

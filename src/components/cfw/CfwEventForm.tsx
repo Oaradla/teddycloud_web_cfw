@@ -48,7 +48,9 @@ export const CfwEventForm: React.FC<CfwEventFormProps> = ({ event, onChange }) =
                         min={def.value === "minutes" ? 1 : 0}
                         max={16383}
                         value={action.value}
-                        onChange={(value) => update(index, { value: value ?? 0 })}
+                        onChange={(value) =>
+                            update(index, { value: value ?? (def.value === "minutes" ? 1 : 0) })
+                        }
                         suffix={t("cfw.minutes")}
                     />
                 );

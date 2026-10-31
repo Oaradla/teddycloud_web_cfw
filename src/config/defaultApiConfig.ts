@@ -1,5 +1,5 @@
 import { Configuration } from "../api";
-import { isReauthRequired, requestReauth } from "../utils/auth/reauth";
+import { isAccountActionRequired, isReauthRequired, requestReauth } from "../utils/auth/reauth";
 import { getBasePath as getRuntimeBasePath } from "../utils/basePath";
 
 /**
@@ -46,6 +46,9 @@ export const defaultAPIConfig = () =>
                 /* ignore */
             }
             let response = await fetch(url, { ...init, headers, credentials: "same-origin" });
+            if (await isAccountActionRequired(response)) {
+                window.dispatchEvent(new Event("teddycloud-auth-refresh"));
+            }
             // a sensitive change needs the password again; streams can not be sent twice
             const body = init?.body;
             const resendable = !(

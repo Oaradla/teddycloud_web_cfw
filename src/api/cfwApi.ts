@@ -59,6 +59,11 @@ export interface CfwBox {
     capabilities: number;
     updateResult: number;
     rolledBackBuild: number;
+    /** why it counts as rolled back: box (the bootloader went back after a failed trial start),
+     * left (it ran, then an older build started again), attempts (offered several times, never ran) */
+    rolledBackReason?: "" | "box" | "left" | "attempts";
+    /** when, in seconds since 1970; 0: unknown */
+    rolledBackTime?: number;
     helloTime: number;
     helloValid: boolean;
     online: boolean;
@@ -231,6 +236,13 @@ async function getJson<T>(path: string): Promise<T> {
     }
 }
 
+/** the answer's text; throws it as an Error on an error answer */
+async function okText(response: Response): Promise<string> {
+    const text = await response.text();
+    if (!response.ok) throw new Error(text || response.statusText);
+    return text;
+}
+
 /** never throws: network errors come back as { ok: false } as well */
 async function result(request: () => Promise<Response>): Promise<CfwResult> {
     try {
@@ -316,17 +328,17 @@ export const cfwApi = {
     uploadCertsByMac: async (mac: string, files: { name: string; data: Uint8Array }[]) => {
         const formData = new FormData();
         for (const f of files) formData.append("filename", new Blob([f.data as BlobPart]), f.name);
-        await api.apiPostTeddyCloudFormDataRaw(`/api/uploadCert?mac=${enc(mac)}`, formData);
+        await okText(
+            await api.apiPostTeddyCloudFormDataRaw(`/api/uploadCert?mac=${enc(mac)}`, formData),
+        );
     },
     /** stores a flash dump in the server's firmware folder; the name of the stored file */
     storeDump: async (name: string, data: Uint8Array) => {
         const formData = new FormData();
         formData.append(name, new Blob([data as BlobPart]), name);
-        const response = await api.apiPostTeddyCloudFormDataRaw(
-            "/api/esp32/uploadFirmware",
-            formData,
+        return okText(
+            await api.apiPostTeddyCloudFormDataRaw("/api/esp32/uploadFirmware", formData),
         );
-        return response.text();
     },
     /** the box checks for an update at once; the assignment stays as it is */
     checkNow: (boxId: string) => postJson(`/api/cfw/deliver?overlay=${enc(boxId)}`, { now: true }),
@@ -337,8 +349,14 @@ export const cfwApi = {
         boxId?: string,
     ): Promise<CfwResult> => {
         try {
-            await api.apiPostTeddyCloudSetting(name, value, boxId);
-            await api.apiTriggerWriteConfigGet();
+            const response = await api.apiPostTeddyCloudSetting(name, value, boxId);
+            // a refused value is answered with 200 "ERROR"
+            const answer = (await response.text()).trim();
+            if (answer === "ERROR") return { ok: false, message: answer };
+            // only admins write the config; for other users the server has saved it already
+            await api.apiTriggerWriteConfigGet().catch((error) => {
+                if (!(error instanceof ResponseError && error.response.status === 403)) throw error;
+            });
             return { ok: true, message: "OK" };
         } catch (error) {
             return { ok: false, message: String(error) };

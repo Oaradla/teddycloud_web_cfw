@@ -1,11 +1,8 @@
 import { useTranslation } from "react-i18next";
 
-import { TeddyCloudApi } from "../../../../api";
-import { defaultAPIConfig } from "../../../../config/defaultApiConfig";
 import { useTeddyCloud } from "../../../../provider/TeddyCloudProvider";
 import { NotificationTypeEnum } from "../../../../types/teddyCloudNotificationTypes";
-
-const api = new TeddyCloudApi(defaultAPIConfig());
+import { writeConfig } from "../../../../utils/settings/writeConfig";
 
 export const useTriggerWriteConfig = () => {
     const { t } = useTranslation();
@@ -13,7 +10,7 @@ export const useTriggerWriteConfig = () => {
 
     const triggerWriteConfig = async () => {
         try {
-            await api.apiTriggerWriteConfigGet();
+            await writeConfig();
         } catch (error) {
             addNotification(
                 NotificationTypeEnum.Error,

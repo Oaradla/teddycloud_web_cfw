@@ -357,16 +357,17 @@ export async function deleteAuthUser(username: string): Promise<{ authDisabled: 
 }
 
 /**
- * currentPassword is needed when changing the own password; mustChangePassword
- * makes another user choose a new one at the next login.
+ * currentPassword (and code, with 2FA) is needed when changing the own password;
+ * mustChangePassword makes another user choose a new one at the next login.
  */
 export async function changeAuthPassword(
     username: string,
     password: string,
     currentPassword?: string,
     mustChangePassword?: boolean,
+    code?: string,
 ): Promise<{ sessionsRevoked: number }> {
-    const body: Record<string, string | boolean> = { username, password };
+    const body: Record<string, string | boolean> = { username, password, ...secondFactor(code) };
     if (currentPassword !== undefined) {
         body.currentPassword = currentPassword;
     }
@@ -417,11 +418,16 @@ export async function renewRecoveryCodes(password: string, code: string): Promis
 }
 
 /** a 6 digit value is a TOTP code, anything else a recovery code */
-function codeBody(password: string, code: string): Record<string, string> {
+function secondFactor(code?: string): Record<string, string> {
+    if (!code) {
+        return {};
+    }
     const trimmed = code.replace(/\s/g, "");
-    return /^\d{6}$/.test(trimmed)
-        ? { password, code: trimmed }
-        : { password, recoveryCode: code.trim() };
+    return /^\d{6}$/.test(trimmed) ? { code: trimmed } : { recoveryCode: code.trim() };
+}
+
+function codeBody(password: string, code: string): Record<string, string> {
+    return { password, ...secondFactor(code) };
 }
 
 export async function fetchSessions(all = false): Promise<AuthSession[]> {

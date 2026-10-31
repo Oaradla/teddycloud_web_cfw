@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from "react";
 import type { ReactNode } from "react";
 
 import { useAuth } from "./AuthProvider";
@@ -6,9 +14,9 @@ import {
     ADMIN_MINE,
     fetchAclMine,
     fetchModelsChangeable,
-    listAllows,
+    folderEntry,
+    mineAllows,
     type AclMine,
-    type AclMineEntry,
     type AclScope,
 } from "../utils/auth/aclApi";
 
@@ -28,20 +36,8 @@ type AclContextValue = AclMine & {
 };
 
 const NOTHING_CHANGEABLE = { models: [] as string[], images: [] as string[] };
-
-/** the entry of a library folder itself or of its nearest parent */
-function folderEntry(
-    folders: Record<string, AclMineEntry>,
-    path: string,
-): AclMineEntry | undefined {
-    let probe = path.replace(/^\/+|\/+$/g, "");
-    while (true) {
-        if (folders[probe]) return folders[probe];
-        if (probe === "") return undefined;
-        const slash = probe.lastIndexOf("/");
-        probe = slash < 0 ? "" : probe.slice(0, slash);
-    }
-}
+/** while the rights of a logged-in user load, or when they could not be loaded */
+const NO_RIGHTS: AclMine = { ...ADMIN_MINE, loginActive: true, level: "guest", admin: false };
 
 const AclContext = createContext<AclContextValue | undefined>(undefined);
 
@@ -51,6 +47,7 @@ export const AclProvider = ({ children }: { children: ReactNode }) => {
     const [mine, setMine] = useState<AclMine>(ADMIN_MINE);
     const [changeable, setChangeable] = useState(NOTHING_CHANGEABLE);
     const [loaded, setLoaded] = useState(false);
+    const latest = useRef(0);
 
     const refresh = useCallback(async () => {
         if (!auth.enabled || !auth.loggedIn) {
@@ -58,23 +55,27 @@ export const AclProvider = ({ children }: { children: ReactNode }) => {
             setLoaded(true);
             return;
         }
+        const request = ++latest.current;
+        let next = NO_RIGHTS;
+        let nextChangeable = NOTHING_CHANGEABLE;
         try {
-            const next = await fetchAclMine();
-            setMine(next);
-            setChangeable(
-                !next.admin && next.system.includes("model.create")
-                    ? await fetchModelsChangeable().catch(() => NOTHING_CHANGEABLE)
-                    : NOTHING_CHANGEABLE,
-            );
-        } catch {
-            /* an older server without permissions: everyone is admin */
-            setMine(ADMIN_MINE);
-        } finally {
-            setLoaded(true);
+            next = await fetchAclMine();
+            if (!next.admin && next.system.includes("model.create"))
+                nextChangeable = await fetchModelsChangeable().catch(() => NOTHING_CHANGEABLE);
+        } catch (e) {
+            /* an older server without permissions: everyone is admin; other errors allow nothing */
+            if ((e as { response?: Response }).response?.status === 404) next = ADMIN_MINE;
         }
+        if (request !== latest.current) return; // a newer request (another user) answers
+        setMine(next);
+        setChangeable(nextChangeable);
+        setLoaded(true);
     }, [auth.enabled, auth.loggedIn, auth.username]);
 
     useEffect(() => {
+        // another user: nothing is allowed until the rights of this one are there
+        setMine(NO_RIGHTS);
+        setLoaded(false);
         void refresh();
     }, [refresh]);
 
@@ -82,14 +83,7 @@ export const AclProvider = ({ children }: { children: ReactNode }) => {
         const can = (scope: AclScope | "system", id: string, right: string) => {
             if (mine.admin) return true;
             if (scope === "system") return mine.system.includes(right);
-            if (scope === "box") return !!mine.boxes[id]?.rights?.includes(right);
-            const entry =
-                scope === "tonie" ? mine.tonies[id.toUpperCase()] : folderEntry(mine.folders, id);
-            if (entry?.owner) return !listAllows(mine.deny, right);
-            if (entry?.granted)
-                return listAllows(entry.granted, right) && !listAllows(mine.deny, right);
-            if (scope === "tonie" && !entry) return listAllows(mine.unassigned.tonie, right);
-            return false;
+            return mineAllows(mine, scope, id, right);
         };
         const owns = (scope: AclScope, id: string) => {
             if (mine.admin) return true;

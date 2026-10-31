@@ -361,9 +361,12 @@ export const FileBrowser: React.FC<{
     const { tafSplitRecord, splitting, openTafSplit, closeTafSplit, confirmTafSplit } = useTafSplit(
         {
             path,
-            onSplit: (result) => {
+            onSplit: (result, file) => {
                 setRebuildList((prev) => !prev);
-                handleDirClick(result.folder.split("/").pop() ?? "");
+                // the new folder is next to the TAF, which may sit in a subfolder (deep search)
+                handleDirClick(
+                    file.slice(0, file.lastIndexOf("/") + 1) + result.folder.split("/").pop(),
+                );
             },
         },
     );
@@ -881,7 +884,8 @@ export const FileBrowser: React.FC<{
                                         </div>
                                     </Button>
                                 ) : null}
-                                {special === "library" && !isTapList && (
+                                {/* only an admin sees every tonie that uses a TAF */}
+                                {special === "library" && !isTapList && acl.admin && (
                                     <Button
                                         size="small"
                                         icon={<SearchOutlined />}

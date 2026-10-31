@@ -23,6 +23,8 @@ export type AclMine = {
     models?: Record<string, AclMineEntry>;
     images?: Record<string, AclMineEntry>;
     unassigned: { tonie?: string; box?: string };
+    /** the rights the user has on a tonie nobody owns */
+    unassignedRights?: { tonie?: string[] };
 };
 
 export type AclRight = { name: string; scope: string; adminOnly: boolean };
@@ -159,6 +161,29 @@ export function listAllows(list: string | undefined, right: string): boolean {
             if (pattern.endsWith("*")) return right.startsWith(pattern.slice(0, -1));
             return pattern === right;
         });
+}
+
+/** the entry of a library folder itself or of its nearest parent */
+export function folderEntry(
+    folders: Record<string, AclMineEntry>,
+    path: string,
+): AclMineEntry | undefined {
+    let probe = path.replace(/^\/+|\/+$/g, "");
+    while (true) {
+        if (folders[probe]) return folders[probe];
+        if (probe === "") return undefined;
+        const slash = probe.lastIndexOf("/");
+        probe = slash < 0 ? "" : probe.slice(0, slash);
+    }
+}
+
+/** the right on a box (overlay id), tonie (ruid) or library folder, as the server decided it in /api/acl/mine */
+export function mineAllows(mine: AclMine, scope: AclScope, id: string, right: string): boolean {
+    if (mine.admin) return true;
+    if (scope === "box") return !!mine.boxes[id]?.rights?.includes(right);
+    if (scope === "folder") return !!folderEntry(mine.folders, id)?.rights?.includes(right);
+    const entry = mine.tonies[id.toUpperCase()];
+    return !!(entry ? entry.rights : mine.unassignedRights?.tonie)?.includes(right);
 }
 
 export type AclUser = { username: string; level: string; group?: string };

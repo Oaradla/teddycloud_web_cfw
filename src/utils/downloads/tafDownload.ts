@@ -1,4 +1,4 @@
-export async function triggerBrowserDownload(url: string, filename?: string): Promise<void> {
+export async function fetchDownloadBlob(url: string): Promise<Blob> {
     const headers = new Headers();
     try {
         const token = sessionStorage.getItem("teddycloud_web_token");
@@ -13,8 +13,10 @@ export async function triggerBrowserDownload(url: string, filename?: string): Pr
     if (!response.ok) {
         throw new Error(`download failed: ${response.status}`);
     }
+    return response.blob();
+}
 
-    const blob = await response.blob();
+export function saveBlob(blob: Blob, filename?: string): void {
     const objectUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = objectUrl;
@@ -23,6 +25,10 @@ export async function triggerBrowserDownload(url: string, filename?: string): Pr
     link.click();
     link.remove();
     URL.revokeObjectURL(objectUrl);
+}
+
+export async function triggerBrowserDownload(url: string, filename?: string): Promise<void> {
+    saveBlob(await fetchDownloadBlob(url), filename);
 }
 
 export function toSameOriginUrl(url: string): string {
@@ -44,6 +50,7 @@ export function buildTafDownloadUrl(
     contentUrl: string,
     options: {
         tracks?: number[];
+        format?: "ogg" | "mp3";
     } = {},
 ): string {
     const relative = toSameOriginUrl(contentUrl);
@@ -52,6 +59,10 @@ export function buildTafDownloadUrl(
     parsed.searchParams.delete("tracks");
     parsed.searchParams.delete("filename");
     parsed.searchParams.delete("entry");
+    parsed.searchParams.delete("format");
+    if (options.format === "mp3") {
+        parsed.searchParams.set("format", "mp3");
+    }
 
     // Track titles stay out of the query. The server only accepts 255 characters,
     // and a multi-track name list exceeds that and is dropped as an empty reply.

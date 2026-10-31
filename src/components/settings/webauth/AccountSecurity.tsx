@@ -187,12 +187,14 @@ export const AccountSecurity = () => {
                     layout="vertical"
                     style={{ maxWidth: 420, marginBottom: 16 }}
                     requiredMark={false}
-                    onFinish={(values: { password: string; newPassword: string }) =>
+                    onFinish={(values: { password: string; newPassword: string; code?: string }) =>
                         run(async () => {
                             const result = await changeAuthPassword(
                                 auth.username,
                                 values.newPassword,
                                 values.password,
+                                undefined,
+                                values.code,
                             );
                             setInfo(
                                 t("settings.webAuth.account.passwordChanged", {
@@ -205,6 +207,7 @@ export const AccountSecurity = () => {
                     }
                 >
                     {passwordField}
+                    {auth.twoFactorEnabled ? codeField : null}
                     <Form.Item
                         name="newPassword"
                         label={t("auth.newPassword")}

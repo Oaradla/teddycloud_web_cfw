@@ -70,11 +70,8 @@ export const SettingsInputNumberField: React.FC<InputNumberFieldProps> = (props)
                     {...field}
                     value={value}
                     onChange={(value) => {
-                        SettingsDataHandler.getInstance().changeSetting(
-                            name,
-                            value ?? 0,
-                            overlayed,
-                        );
+                        if (value === null) return; // an emptied field keeps the value
+                        SettingsDataHandler.getInstance().changeSetting(name, value, overlayed);
                         setFieldValue(SettingsDataHandler.getInstance().getSetting(name)?.value);
                     }}
                     disabled={!overlayed && overlayed !== undefined}

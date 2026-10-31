@@ -123,6 +123,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return () => window.removeEventListener("teddycloud-auth-required", onAuthRequired);
     }, []);
 
+    useEffect(() => {
+        const onRefresh = () => void refresh();
+        window.addEventListener("teddycloud-auth-refresh", onRefresh);
+        return () => window.removeEventListener("teddycloud-auth-refresh", onRefresh);
+    }, [refresh]);
+
     const login = useCallback(
         async (username: string, password: string) => {
             const result = await apiLogin(username, password);

@@ -17,6 +17,7 @@ export const SettingsInputField: React.FC<InputFieldProps> = (props) => {
     const { t } = useTranslation();
     const { name, label, description, overlayed: initialOverlayed } = props;
     const [field, meta] = useField(name!);
+    const TextInput = name?.toLowerCase().includes("password") ? Input.Password : Input;
     const [overlayed, setOverlayed] = useState<boolean | undefined>(initialOverlayed); // State to track overlayed boolean
 
     const [fieldValue, setFieldValue] = useState(
@@ -63,7 +64,7 @@ export const SettingsInputField: React.FC<InputFieldProps> = (props) => {
             label={<span style={{ textWrap: "auto", lineHeight: "1.2" }}>{label}</span>}
             tooltip={description}
         >
-            <Input
+            <TextInput
                 {...field}
                 value={value}
                 onChange={(changeEventHandler) => {

@@ -26,6 +26,10 @@ export const CFW_MESSAGE_KEYS: Record<string, string> = {
     "no image received": "noImage",
     "tag missing": "tagMissing",
     "CFW support is off (cfw.enabled)": "cfwOff",
+    "the box cannot be reached now": "notReachable",
+    "no battery log for this box": "noBatteryLog",
+    "no release package with a card tree for this build": "noCardPackage",
+    "invalid JSON": "invalidJson",
 };
 
 /** a message of the server in the UI language; texts with values in them stay as sent */

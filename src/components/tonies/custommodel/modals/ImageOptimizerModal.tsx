@@ -98,19 +98,18 @@ export const ImageOptimizerModal: React.FC<{
                 const original = new File([b.blob], name, { type: b.blob.type });
                 const small = await shrinkImage(original);
                 if (small !== original && small.size < b.blob.size) {
-                    // never over the original: a copy of the same type gets its own name
-                    const copy =
-                        small.name === name
-                            ? new File([small], name.replace(/(\.[^.]+)?$/, "-small$1"), {
-                                  type: small.type,
-                              })
-                            : small;
+                    // never over the original or another picture of the same base name
+                    const copy = new File([small], small.name.replace(/(\.[^.]+)?$/, "-small$1"), {
+                        type: small.type,
+                    });
                     const form = new FormData();
                     form.append("file", copy, copy.name);
-                    await api.apiPostTeddyCloudFormDataRaw(
+                    const response = await api.apiPostTeddyCloudFormDataRaw(
                         `/api/fileUpload?path=${encodeURIComponent(dir)}&special=custom_img`,
                         form,
                     );
+                    if (!response.ok)
+                        throw new Error((await response.text()) || response.statusText);
                     const pic = `${PREFIX}${dir ? `${dir}/` : ""}${copy.name}`;
                     for (const entry of b.entries) await onSave({ ...entry, pic });
                     before += b.blob.size;
@@ -125,14 +124,19 @@ export const ImageOptimizerModal: React.FC<{
         }
         setWork(null);
         setResult({ count, before, after });
-        onDone();
+    };
+
+    /* the models are reloaded only now: a reload while open would scan again and drop the result */
+    const close = () => {
+        if (result) onDone();
+        onClose();
     };
 
     return (
         <Modal
             open={open}
             title={t("tonies.customEditor.optimizeImages.title")}
-            onCancel={work ? undefined : onClose}
+            onCancel={work ? undefined : close}
             closable={!work}
             okText={
                 result
@@ -145,7 +149,7 @@ export const ImageOptimizerModal: React.FC<{
                 style: result ? { display: "none" } : undefined,
                 disabled: !!work,
             }}
-            onOk={result ? onClose : run}
+            onOk={result ? close : run}
         >
             <Paragraph>
                 {t("tonies.customEditor.optimizeImages.text", { kb: LIMIT / 1024 })}

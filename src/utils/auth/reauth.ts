@@ -27,13 +27,23 @@ export function requestReauth(): Promise<boolean> {
 }
 
 export async function isReauthRequired(response: Response): Promise<boolean> {
+    return (await forbiddenCode(response)) === "reauth_required";
+}
+
+/** an admin asked for a new password or 2FA during the session: the login state shows what to do */
+export async function isAccountActionRequired(response: Response): Promise<boolean> {
+    const code = await forbiddenCode(response);
+    return code === "password_change_required" || code === "2fa_setup_required";
+}
+
+async function forbiddenCode(response: Response): Promise<string | undefined> {
     if (response.status !== 403) {
-        return false;
+        return undefined;
     }
     try {
         const data = await response.clone().json();
-        return data?.error === "reauth_required";
+        return data?.error;
     } catch {
-        return false;
+        return undefined;
     }
 }

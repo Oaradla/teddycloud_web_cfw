@@ -142,7 +142,8 @@ export const WebAuthSettings = () => {
                 lanOnly: !!values.lanOnly,
                 require2fa: !!values.require2fa,
                 mustChangePassword: !!values.mustChangePassword,
-                ...(values.level ? groupChange(values.level) : {}),
+                // the first user has to be an admin, or nobody can manage the login once it is on
+                ...groupChange(users.length === 0 ? "admin" : (values.level ?? "user")),
             });
             createForm.resetFields();
             await load();
@@ -234,6 +235,7 @@ export const WebAuthSettings = () => {
     };
 
     const lastUser = users.length === 1;
+    const mayManage = acl.admin || acl.system.includes("users.manage");
     const isSelf = (username: string) =>
         loggedIn && username.toLowerCase() === auth.username.toLowerCase();
     const client = auth.client;
@@ -421,24 +423,28 @@ export const WebAuthSettings = () => {
                                 </Tag>
                             ),
                     },
-                    {
-                        title: (
-                            <Tooltip title={t("settings.webAuth.require2faHint")}>
-                                {t("settings.webAuth.require2fa")}
-                            </Tooltip>
-                        ),
-                        key: "require2fa",
-                        render: (_: unknown, u: AuthUser) => (
-                            <Switch
-                                size="small"
-                                checked={u.require2fa}
-                                onChange={(checked) =>
-                                    void updateUser(u.username, { require2fa: checked })
-                                }
-                                aria-label={t("settings.webAuth.require2fa")}
-                            />
-                        ),
-                    },
+                    ...(require2faAll
+                        ? []
+                        : [
+                              {
+                                  title: (
+                                      <Tooltip title={t("settings.webAuth.require2faHint")}>
+                                          {t("settings.webAuth.require2fa")}
+                                      </Tooltip>
+                                  ),
+                                  key: "require2fa",
+                                  render: (_: unknown, u: AuthUser) => (
+                                      <Switch
+                                          size="small"
+                                          checked={u.require2fa}
+                                          onChange={(checked) =>
+                                              void updateUser(u.username, { require2fa: checked })
+                                          }
+                                          aria-label={t("settings.webAuth.require2fa")}
+                                      />
+                                  ),
+                              },
+                          ]),
                     {
                         title: (
                             <Tooltip title={t("settings.webAuth.lanOnlyHint")}>
@@ -524,18 +530,19 @@ export const WebAuthSettings = () => {
                             </Flex>
                         ),
                     },
-                ]}
+                ].filter((column) => mayManage || column.key !== "actions")}
                 style={{ marginBottom: 24 }}
             />
             {acl.admin && users.length > 0 ? (
                 <UserOwned usernames={users.map((u) => u.username)} />
             ) : null}
 
-            <Title level={4}>{t("settings.webAuth.addUser")}</Title>
+            {mayManage ? <Title level={4}>{t("settings.webAuth.addUser")}</Title> : null}
             <Form
                 form={createForm}
                 layout="vertical"
                 onFinish={(v) => void handleCreate(v)}
+                hidden={!mayManage}
                 style={{ maxWidth: 420, marginBottom: 24 }}
             >
                 <Form.Item
@@ -564,16 +571,24 @@ export const WebAuthSettings = () => {
                 >
                     <Input.Password autoComplete="new-password" style={{ minHeight: 44 }} />
                 </Form.Item>
-                <Form.Item
-                    name="level"
-                    label={t("settings.webAuth.level")}
-                    initialValue={acl.admin ? "user" : acl.level}
-                >
-                    <Select options={groupOptions} style={{ minHeight: 44 }} />
-                </Form.Item>
-                <Form.Item name="require2fa" valuePropName="checked" style={{ marginBottom: 4 }}>
-                    <Checkbox>{t("settings.webAuth.require2fa")}</Checkbox>
-                </Form.Item>
+                {users.length > 0 ? (
+                    <Form.Item
+                        name="level"
+                        label={t("settings.webAuth.level")}
+                        initialValue={acl.admin ? "user" : acl.level}
+                    >
+                        <Select options={groupOptions} style={{ minHeight: 44 }} />
+                    </Form.Item>
+                ) : null}
+                {require2faAll ? null : (
+                    <Form.Item
+                        name="require2fa"
+                        valuePropName="checked"
+                        style={{ marginBottom: 4 }}
+                    >
+                        <Checkbox>{t("settings.webAuth.require2fa")}</Checkbox>
+                    </Form.Item>
+                )}
                 <Form.Item
                     name="mustChangePassword"
                     valuePropName="checked"

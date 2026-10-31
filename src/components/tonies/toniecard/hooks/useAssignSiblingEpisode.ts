@@ -53,7 +53,11 @@ export const useAssignSiblingEpisode = ({
                 if (cancelled) return;
 
                 const siblingFiles: Record[] = ((data.files || []) as Record[])
-                    .filter((file) => !file.isDir && file.name !== file.tafHeader?.audioId + ".taf")
+                    .filter(
+                        (file) =>
+                            /\.(taf|tap)$/i.test(file.name) &&
+                            file.name !== file.tafHeader?.audioId + ".taf",
+                    )
                     .sort((a, b) => a.name.localeCompare(b.name));
 
                 const currentIndex = siblingFiles.findIndex(

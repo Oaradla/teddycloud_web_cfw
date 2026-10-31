@@ -19,6 +19,30 @@ import { useNotify } from "./useNotify";
 
 const { Text } = Typography;
 
+/* which build was rolled back, why and when; the build running now is shown above it */
+const RolledBack: React.FC<{ box: CfwBox }> = ({ box }) => {
+    const { t } = useTranslation();
+    if (!box.rolledBackBuild) return null;
+    return (
+        <div>
+            <Text type="warning" style={{ fontSize: 12 }}>
+                <WarningOutlined />{" "}
+                {t("cfw.update.rolledBack", { build: formatBuild(box.rolledBackBuild) })}
+                {box.rolledBackTime
+                    ? ` (${new Date(box.rolledBackTime * 1000).toLocaleString()})`
+                    : ""}
+            </Text>
+            {box.rolledBackReason && (
+                <div>
+                    <Text type="secondary" style={{ fontSize: 12 }}>
+                        {t(`cfw.update.rolledBackReason.${box.rolledBackReason}`)}
+                    </Text>
+                </div>
+            )}
+        </div>
+    );
+};
+
 interface BoxesCardProps {
     boxes: CfwBox[];
     images: CfwImage[];
@@ -90,16 +114,7 @@ export const BoxesCard: React.FC<BoxesCardProps> = ({ boxes, images, loading, on
                                     </Text>
                                 </div>
                             )}
-                            {box.rolledBackBuild !== 0 && (
-                                <div>
-                                    <Text type="warning" style={{ fontSize: 12 }}>
-                                        <WarningOutlined />{" "}
-                                        {t("cfw.update.rolledBack", {
-                                            build: formatBuild(box.rolledBackBuild),
-                                        })}
-                                    </Text>
-                                </div>
-                            )}
+                            <RolledBack box={box} />
                         </>
                     );
                 // version and revision are known when the running build is in the library
@@ -120,14 +135,7 @@ export const BoxesCard: React.FC<BoxesCardProps> = ({ boxes, images, loading, on
                                 {t(box.helloValid ? "cfw.box.connected" : "cfw.box.notConnected")}
                             </Tag>
                         </div>
-                        {box.rolledBackBuild !== 0 && (
-                            <Text type="warning" style={{ fontSize: 12 }}>
-                                <WarningOutlined />{" "}
-                                {t("cfw.update.rolledBack", {
-                                    build: formatBuild(box.rolledBackBuild),
-                                })}
-                            </Text>
-                        )}
+                        <RolledBack box={box} />
                         {box.updateResult === 1 && (
                             <Text type="success" style={{ fontSize: 12 }}>
                                 {t("cfw.update.confirmed")}
@@ -194,6 +202,16 @@ export const BoxesCard: React.FC<BoxesCardProps> = ({ boxes, images, loading, on
                     onChange={(build: number) => deliver(box, build)}
                     options={[
                         { value: 0, label: t("cfw.update.noAssignment") },
+                        // an assignment the library no longer offers stays visible
+                        ...(box.update.target &&
+                        !imagesForBox(images, box).some((i) => i.build === box.update.target)
+                            ? [
+                                  {
+                                      value: box.update.target,
+                                      label: `${formatBuild(box.update.target)} (${t("cfw.update.notInLibrary")})`,
+                                  },
+                              ]
+                            : []),
                         ...imagesForBox(images, box).map((image) => ({
                             value: image.build,
                             label: imageLabel(image, t(channelKey(image))),

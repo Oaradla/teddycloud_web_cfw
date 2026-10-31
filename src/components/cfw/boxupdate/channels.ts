@@ -54,11 +54,13 @@ export const oldImages = (images: CfwImage[], boxes: CfwBox[]) => {
         custom.every(
             (other) => platformOf(other) !== platformOf(image) || other.build <= image.build,
         );
-    const used = (image: CfwImage) =>
-        boxes.some(
-            (box) =>
-                platformOf(box) === platformOf(image) &&
-                [box.version, box.update.target, box.update.next].includes(image.build),
-        );
-    return custom.filter((image) => !newest(image) && !used(image));
+    return custom.filter((image) => !newest(image) && !usedBy(image, boxes).length);
 };
+
+/** the boxes that run an image, have it assigned or take it next */
+export const usedBy = (image: CfwImage, boxes: CfwBox[]) =>
+    boxes.filter(
+        (box) =>
+            platformOf(box) === platformOf(image) &&
+            [box.version, box.update.target, box.update.next].includes(image.build),
+    );
