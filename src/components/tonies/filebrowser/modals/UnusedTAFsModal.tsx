@@ -1,5 +1,5 @@
 import React, { Key, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Empty, Flex, Modal, Table, Tooltip, theme } from "antd";
+import { Alert, Button, Empty, Flex, Modal, Table, Tooltip, theme } from "antd";
 import type { ColumnsType, SortOrder } from "antd/es/table/interface";
 import { DeleteOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
@@ -38,6 +38,7 @@ export const UnusedTAFsModal: React.FC<UnusedTAFsModalProps> = ({
     const { tonies, loading: loadingTonies } = useTonies({ merged: true, shuffle: true });
 
     const [records, setRecords] = useState<RecordWithPath[]>([]);
+    const [skipped, setSkipped] = useState<string[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
@@ -52,8 +53,10 @@ export const UnusedTAFsModal: React.FC<UnusedTAFsModalProps> = ({
 
         setLoading(true);
         try {
-            const unusedFiles = await fetchUnusedTAFsInLibrary(tonies, {});
+            const skippedPlaylists: string[] = [];
+            const unusedFiles = await fetchUnusedTAFsInLibrary(tonies, {}, skippedPlaylists);
             setRecords(unusedFiles);
+            setSkipped(skippedPlaylists);
         } catch (e) {
             // eslint-disable-next-line no-console
             console.error("Failed to load TAFs:", e);
@@ -211,6 +214,17 @@ export const UnusedTAFsModal: React.FC<UnusedTAFsModalProps> = ({
                 multipleOpen={isConfirmMultipleDeleteModalOpen}
                 onCloseMultiple={() => setIsConfirmMultipleDeleteModalOpen(false)}
             />
+
+            {skipped.length > 0 && (
+                <Alert
+                    type="warning"
+                    showIcon
+                    title={t("fileBrowser.unusedTafsModal.skippedPlaylists", {
+                        list: skipped.map((path) => "lib://" + path).join(", "),
+                    })}
+                    style={{ marginBottom: 16 }}
+                />
+            )}
 
             <div className="filesTable" style={{ position: "relative" }} ref={parentRef}>
                 {loading ? <LoadingSpinnerAsOverlay parentRef={parentRef} /> : null}

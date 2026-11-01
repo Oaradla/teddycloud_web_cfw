@@ -15,6 +15,10 @@ export const authErrorText = (t: TFunction, err: unknown): string => {
     return err instanceof Error ? err.message : t("settings.webAuth.saveFailed");
 };
 
+/** the code of the second factor was refused, so it has to be entered again */
+export const codeRefused = (err: unknown): boolean =>
+    err instanceof AuthApiError && (err.code === "invalid_code" || err.code === "tfa_locked");
+
 /** short browser and OS name from a User-Agent */
 export const shortUserAgent = (ua: string): string => {
     if (!ua) {

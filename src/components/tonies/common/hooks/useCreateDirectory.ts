@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { TeddyCloudApi } from "../../../../api";
 import { defaultAPIConfig } from "../../../../config/defaultApiConfig";
 import { isInputValid } from "../../../../utils/validation/fieldInputValidator";
+import { isPathTooLong } from "../../../../utils/files/pathLength";
 import { useTeddyCloud } from "../../../../provider/TeddyCloudProvider";
 import { NotificationTypeEnum } from "../../../../types/teddyCloudNotificationTypes";
 import { DirectoryTreeApi } from "../hooks/useDirectoryTree";
@@ -101,6 +102,15 @@ export const useDirectoryCreate = ({
         }
 
         const dirFullPath = `${decodeURIComponent(createDirectoryPath)}/${inputValueCreateDirectory}`;
+        if (isPathTooLong(dirFullPath)) {
+            addNotification(
+                NotificationTypeEnum.Error,
+                t("fileBrowser.createDirectory.directoryCreateFailed"),
+                t("fileBrowser.messages.pathTooLong", { path: dirFullPath }),
+                t("fileBrowser.title"),
+            );
+            return;
+        }
 
         try {
             api.apiPostTeddyCloudRaw(

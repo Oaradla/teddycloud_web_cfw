@@ -7,7 +7,7 @@ import { KeyOutlined, LockOutlined, SafetyOutlined, UserOutlined } from "@ant-de
 import { useAuth, type PendingSecondFactor } from "../provider/AuthProvider";
 import { StyledLanguageSwitcher } from "../components/common/header/StyledLanguageSwitcher";
 import { TwoFactorSetup } from "../components/settings/webauth/TwoFactorSetup";
-import { authErrorText } from "../components/settings/webauth/authFormat";
+import { authErrorText, codeRefused } from "../components/settings/webauth/authFormat";
 import { AuthApiError, changeAuthPassword } from "../utils/auth/webAuthApi";
 import logoImg from "../assets/logo.png";
 
@@ -32,6 +32,7 @@ export const LoginPage = ({ themeSwitch }: { themeSwitch: ReactNode }) => {
     const [submitting, setSubmitting] = useState(false);
     const [pending, setPending] = useState<PendingSecondFactor | null>(null);
     const [useRecovery, setUseRecovery] = useState(false);
+    const [passwordForm] = Form.useForm();
 
     const describe = (err: unknown) => {
         if (err instanceof AuthApiError) {
@@ -58,6 +59,9 @@ export const LoginPage = ({ themeSwitch }: { themeSwitch: ReactNode }) => {
             }
             if (err.code === "invalid_code") {
                 return useRecovery ? t("auth.recoveryCodeWrong") : t("auth.twoFactorCodeWrong");
+            }
+            if (err.code === "code_required" || err.code === "tfa_locked") {
+                return t(`settings.webAuth.errors.${err.code}`);
             }
             if (err.code === "busy") {
                 return t("auth.loginBusy");
@@ -125,6 +129,7 @@ export const LoginPage = ({ themeSwitch }: { themeSwitch: ReactNode }) => {
             );
             await refresh();
         } catch (err) {
+            if (codeRefused(err)) passwordForm.setFieldValue("code", "");
             setError(authErrorText(t, err));
         } finally {
             setSubmitting(false);
@@ -162,7 +167,12 @@ export const LoginPage = ({ themeSwitch }: { themeSwitch: ReactNode }) => {
                 {error ? (
                     <Alert type="error" showIcon title={error} style={{ marginBottom: 16 }} />
                 ) : null}
-                <Form layout="vertical" onFinish={onPasswordChange} requiredMark={false}>
+                <Form
+                    form={passwordForm}
+                    layout="vertical"
+                    onFinish={onPasswordChange}
+                    requiredMark={false}
+                >
                     {/* lets password managers store the new password under the right user */}
                     <input
                         type="text"
@@ -188,7 +198,7 @@ export const LoginPage = ({ themeSwitch }: { themeSwitch: ReactNode }) => {
                         <Form.Item
                             name="code"
                             label={t("settings.webAuth.twoFactor.codeOrRecovery")}
-                            rules={[{ required: true, message: t("auth.twoFactorCodeInvalid") }]}
+                            rules={[{ required: true, message: t("auth.codeRequired") }]}
                         >
                             <Input
                                 prefix={<SafetyOutlined />}

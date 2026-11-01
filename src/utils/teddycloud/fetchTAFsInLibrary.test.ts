@@ -122,4 +122,31 @@ describe("fetchTAFsInLibrary", () => {
 
         expect(result).toEqual([]);
     });
+
+    it("reads playlists by encoded path and skips one that cannot be read", async () => {
+        vi.spyOn(console, "warn").mockImplementation(() => undefined);
+        apiMock.apiGetTeddyCloudApiRaw.mockImplementation(async (url: string) => {
+            if (url.includes("path=&")) {
+                return response([
+                    file("Folge #1.tap"),
+                    file("bad.tap"),
+                    file("a.taf"),
+                    file("b.taf"),
+                ]);
+            }
+            if (url === "/library/Folge%20%231.tap") {
+                return new Response(JSON.stringify({ files: [{ filepath: "lib://a.taf" }] }));
+            }
+            if (url === "/library/bad.tap") {
+                return new Response(null, { status: 404 });
+            }
+            throw new Error(`Unexpected URL: ${url}`);
+        });
+
+        const skipped: string[] = [];
+        const result = await fetchUnusedTAFsInLibrary([], {}, skipped);
+
+        expect(result.map((entry) => entry.name)).toEqual(["b.taf"]);
+        expect(skipped).toEqual(["bad.tap"]);
+    });
 });

@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Alert, Form, Radio, Typography } from "antd";
+import { Alert, ConfigProvider, Form, Radio, Typography } from "antd";
 
 import { cfwApi, CfwEvent, CfwProfile, CfwResult, CfwTag, formatTime } from "../../api/cfwApi";
 import LoadingSpinner from "../common/elements/LoadingSpinner";
@@ -19,6 +19,8 @@ interface CfwTagSettingsProps {
     onDirtyChange?: (dirty: boolean) => void;
     /** the use chosen (also before saving), e.g. to hide the source of an event tag */
     onKindChange?: (kind: CfwTag["kind"]) => void;
+    /** shown without letting them be changed */
+    readOnly?: boolean;
 }
 
 const EMPTY_PROFILE: CfwProfile = {
@@ -45,7 +47,7 @@ const tagSettings = (
 
 /** the settings of the custom firmware for one tag: a profile for a figure, or an event tag */
 export const CfwTagSettings = forwardRef<CfwTagSettingsHandle, CfwTagSettingsProps>(
-    ({ ruid, onDirtyChange, onKindChange }, ref) => {
+    ({ ruid, onDirtyChange, onKindChange, readOnly = false }, ref) => {
         const { t } = useTranslation();
         const [loaded, setLoaded] = useState<CfwTag | null>(null);
         const [error, setError] = useState<string | null>(null);
@@ -110,7 +112,7 @@ export const CfwTagSettings = forwardRef<CfwTagSettingsHandle, CfwTagSettingsPro
         if (loaded === null) return <LoadingSpinner />;
 
         return (
-            <>
+            <ConfigProvider componentDisabled={readOnly}>
                 <Text type="secondary" style={{ display: "block", marginBottom: 12 }}>
                     {t("cfw.tagIntro")}
                 </Text>
@@ -141,7 +143,7 @@ export const CfwTagSettings = forwardRef<CfwTagSettingsHandle, CfwTagSettingsPro
                         })}
                     </Text>
                 ) : null}
-            </>
+            </ConfigProvider>
         );
     },
 );

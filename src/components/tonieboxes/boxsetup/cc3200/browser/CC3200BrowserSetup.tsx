@@ -73,7 +73,7 @@ export function CC3200BrowserSetup({ onShowBoxes }: { onShowBoxes: () => void })
     const backup = useRef<{ flash: Uint8Array; files: Map<string, Uint8Array> } | null>(null);
     const [backupSaved, setBackupSaved] = useState(false);
     const [storedName, setStoredName] = useState("");
-    const [failed, setFailed] = useState<string[]>([]);
+    const [failed, setFailed] = useState<Awaited<ReturnType<Cc3200["readAllFiles"]>>["failed"]>([]);
     const [mac, setMac] = useState("");
     const [certsDone, setCertsDone] = useState(false);
     const [bootloaderDone, setBootloaderDone] = useState(false);
@@ -319,7 +319,16 @@ export function CC3200BrowserSetup({ onShowBoxes }: { onShowBoxes: () => void })
                         <Alert
                             type="warning"
                             showIcon
-                            title={t(k + "backupFailed", { list: failed.join("; ") })}
+                            title={t(k + "backupFailed", {
+                                list: failed
+                                    .map((f) => {
+                                        const text = t(k + "errors." + f.key, f.values);
+                                        return f.name && !f.values.name
+                                            ? `${f.name}: ${text}`
+                                            : text;
+                                    })
+                                    .join("; "),
+                            })}
                             style={{ marginBottom: 16 }}
                         />
                     )}

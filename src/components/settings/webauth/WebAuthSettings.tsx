@@ -238,6 +238,7 @@ export const WebAuthSettings = () => {
     const mayManage = acl.admin || acl.system.includes("users.manage");
     const isSelf = (username: string) =>
         loggedIn && username.toLowerCase() === auth.username.toLowerCase();
+    const mayEdit = (username: string) => acl.admin || (mayManage && !isSelf(username));
     const client = auth.client;
 
     return (
@@ -437,6 +438,7 @@ export const WebAuthSettings = () => {
                                       <Switch
                                           size="small"
                                           checked={u.require2fa}
+                                          disabled={!mayEdit(u.username)}
                                           onChange={(checked) =>
                                               void updateUser(u.username, { require2fa: checked })
                                           }
@@ -456,6 +458,7 @@ export const WebAuthSettings = () => {
                             <Switch
                                 size="small"
                                 checked={u.lanOnly}
+                                disabled={!mayEdit(u.username)}
                                 onChange={(checked) =>
                                     void updateUser(u.username, { lanOnly: checked })
                                 }

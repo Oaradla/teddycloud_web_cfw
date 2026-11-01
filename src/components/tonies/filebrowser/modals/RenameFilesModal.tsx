@@ -12,6 +12,7 @@ import {
 } from "../../../../utils/validation/fieldInputValidator";
 import { useTeddyCloud } from "../../../../provider/TeddyCloudProvider";
 import { defaultAPIConfig } from "../../../../config/defaultApiConfig";
+import { isPathTooLong } from "../../../../utils/files/pathLength";
 
 const api = new TeddyCloudApi(defaultAPIConfig());
 
@@ -65,6 +66,15 @@ const RenameFileModal: React.FC<RenameFileModalProps> = ({
     }, [open, currentFile]);
 
     const moveRenameFile = async (source: string, target: string) => {
+        if (isPathTooLong(target)) {
+            addNotification(
+                NotificationTypeEnum.Error,
+                t("fileBrowser.messages.renamingFailed"),
+                t("fileBrowser.messages.pathTooLong", { path: target }),
+                t("fileBrowser.title"),
+            );
+            return;
+        }
         const body =
             "source=" + encodeURIComponent(source) + "&target=" + encodeURIComponent(target);
         const key = "rename-file";

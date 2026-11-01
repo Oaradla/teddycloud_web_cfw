@@ -110,6 +110,7 @@ export async function findFirstInLibrary(
 export async function fetchUnusedTAFsInLibrary(
     tonies: TonieCardProps[],
     args?: { path?: string; special?: string; overlay?: string },
+    skipped: string[] = [],
 ): Promise<RecordWithPath[]> {
     const all = await fetchAllTAFsInLibrary(args);
     const usedPaths = new Set(
@@ -117,13 +118,19 @@ export async function fetchUnusedTAFsInLibrary(
     );
     // a playlist uses its source TAFs and the TAF it builds
     for (const tap of all.filter((r) => !r.isDir && r.name.toLowerCase().endsWith(".tap"))) {
-        const res = await api.apiGetTeddyCloudApiRaw(`/library/${encodeURI(tap.fullPath)}`);
-        if (!res.ok) throw new Error(`${tap.fullPath}: HTTP ${res.status}`);
-        const data = await res.json();
-        [data.filepath, ...(data.files ?? []).map((f: { filepath?: string }) => f.filepath)]
-            .map(normalizeLibPath)
-            .filter(Boolean)
-            .forEach((p) => usedPaths.add(p));
+        try {
+            const url = "/library/" + tap.fullPath.split("/").map(encodeURIComponent).join("/");
+            const res = await api.apiGetTeddyCloudApiRaw(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            [data.filepath, ...(data.files ?? []).map((f: { filepath?: string }) => f.filepath)]
+                .map(normalizeLibPath)
+                .filter(Boolean)
+                .forEach((p) => usedPaths.add(p));
+        } catch (err) {
+            console.warn(`playlist ${tap.fullPath} skipped:`, err);
+            skipped.push(tap.fullPath);
+        }
     }
     const unused = all.filter(
         (r) =>

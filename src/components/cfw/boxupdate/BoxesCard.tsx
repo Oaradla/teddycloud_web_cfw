@@ -4,7 +4,14 @@ import { Button, Card, Select, Space, Table, Tag, Tooltip, Typography } from "an
 import type { ColumnsType } from "antd/es/table";
 import { ReloadOutlined, SendOutlined, WarningOutlined } from "@ant-design/icons";
 
-import { cfwApi, CfwBox, CfwChannel, CfwImage, formatBuild } from "../../../api/cfwApi";
+import {
+    cfwApi,
+    CfwBox,
+    CfwChannel,
+    CfwImage,
+    cfwRemoteAvailable,
+    formatBuild,
+} from "../../../api/cfwApi";
 import {
     CHANNEL_NUMBER,
     CHANNELS,
@@ -268,7 +275,7 @@ export const BoxesCard: React.FC<BoxesCardProps> = ({ boxes, images, loading, on
                         <Tooltip title={t("cfw.update.deliverNowHint")}>
                             <Button
                                 icon={<SendOutlined />}
-                                disabled={!box.helloValid}
+                                disabled={!box.helloValid || !cfwRemoteAvailable(box)}
                                 onClick={() => checkNow(box)}
                             >
                                 {t("cfw.update.deliverNow")}

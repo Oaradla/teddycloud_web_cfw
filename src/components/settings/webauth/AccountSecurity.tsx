@@ -14,7 +14,7 @@ import {
 } from "../../../utils/auth/webAuthApi";
 import { RecoveryCodes } from "./RecoveryCodes";
 import { TwoFactorSetup } from "./TwoFactorSetup";
-import { authErrorText, formatTime, shortUserAgent } from "./authFormat";
+import { authErrorText, codeRefused, formatTime, shortUserAgent } from "./authFormat";
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -30,6 +30,7 @@ export const AccountSecurity = () => {
     const [error, setError] = useState<string | null>(null);
     const [info, setInfo] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
+    const [passwordForm] = Form.useForm();
 
     const loadSessions = async () => {
         try {
@@ -59,13 +60,14 @@ export const AccountSecurity = () => {
     const close = () => {
         setMode("none");
         setError(null);
+        passwordForm.resetFields();
     };
 
     const codeField = (
         <Form.Item
             name="code"
             label={t("settings.webAuth.twoFactor.codeOrRecovery")}
-            rules={[{ required: true, message: t("auth.twoFactorCodeInvalid") }]}
+            rules={[{ required: true, message: t("auth.codeRequired") }]}
         >
             <Input autoComplete="one-time-code" style={{ minHeight: 44 }} />
         </Form.Item>
@@ -184,6 +186,7 @@ export const AccountSecurity = () => {
 
             {mode === "password" ? (
                 <Form
+                    form={passwordForm}
                     layout="vertical"
                     style={{ maxWidth: 420, marginBottom: 16 }}
                     requiredMark={false}
@@ -195,13 +198,17 @@ export const AccountSecurity = () => {
                                 values.password,
                                 undefined,
                                 values.code,
-                            );
+                            ).catch((err) => {
+                                if (codeRefused(err)) passwordForm.setFieldValue("code", "");
+                                throw err;
+                            });
                             setInfo(
                                 t("settings.webAuth.account.passwordChanged", {
                                     count: result.sessionsRevoked,
                                 }),
                             );
                             close();
+                            await auth.refresh();
                             await loadSessions();
                         })
                     }

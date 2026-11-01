@@ -9,6 +9,7 @@ import { NotificationTypeEnum } from "../../../../types/teddyCloudNotificationTy
 import { Record } from "../../../../types/fileBrowserTypes";
 import { useTeddyCloud } from "../../../../provider/TeddyCloudProvider";
 import { defaultAPIConfig } from "../../../../config/defaultApiConfig";
+import { isPathTooLong } from "../../../../utils/files/pathLength";
 import { DirectoryTreeApi } from "../../common/hooks/useDirectoryTree";
 import { DirectoryTreeSelect } from "../../common/elements/DirectoryTreeSelect";
 import { useDirectoryCreate } from "../../common/hooks/useCreateDirectory";
@@ -86,6 +87,17 @@ const MoveFilesModal: React.FC<MoveFilesModalProps> = ({
         moving: boolean,
         flagMultiple?: boolean,
     ) => {
+        if (isPathTooLong(target)) {
+            addNotification(
+                NotificationTypeEnum.Error,
+                moving
+                    ? t("fileBrowser.messages.movingFailed")
+                    : t("fileBrowser.messages.renamingFailed"),
+                t("fileBrowser.messages.pathTooLong", { path: target }),
+                t("fileBrowser.title"),
+            );
+            return;
+        }
         const body =
             "source=" + encodeURIComponent(source) + "&target=" + encodeURIComponent(target);
         const key = moving ? "move-file" : "rename-file";

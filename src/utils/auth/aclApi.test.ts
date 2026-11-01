@@ -21,7 +21,10 @@ describe("mineAllows", () => {
         ...ADMIN_MINE,
         admin: false,
         tonies: { E00401020304050A: { owner: true, rights: ["tonie.view"] } },
-        folders: { "private/bob": { owner: true, rights: ["folder.read", "folder.write"] } },
+        folders: {
+            "private/bob": { owner: true, rights: ["folder.read", "folder.write"] },
+            "private/bob/shared": { owner: false, rights: [] },
+        },
         unassignedRights: { tonie: ["tonie.view", "tonie.assign"] },
     };
 
@@ -32,6 +35,7 @@ describe("mineAllows", () => {
         expect(mineAllows(mine, "tonie", "E00401020304050B", "tonie.edit")).toBe(false);
         expect(mineAllows(mine, "folder", "/private/bob/sub/", "folder.write")).toBe(true);
         expect(mineAllows(mine, "folder", "private/alice", "folder.read")).toBe(false);
+        expect(mineAllows(mine, "folder", "private/bob/shared/sub", "folder.read")).toBe(false);
         expect(
             mineAllows(
                 { ...mine, unassignedRights: undefined },

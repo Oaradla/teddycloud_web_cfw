@@ -84,7 +84,7 @@ export const ReauthModal = ({ twoFactor }: { twoFactor: boolean }) => {
                     <Form.Item
                         name="code"
                         label={t("settings.webAuth.twoFactor.codeOrRecovery")}
-                        rules={[{ required: true, message: t("auth.twoFactorCodeInvalid") }]}
+                        rules={[{ required: true, message: t("auth.codeRequired") }]}
                     >
                         <Input autoComplete="one-time-code" style={{ minHeight: 44 }} />
                     </Form.Item>

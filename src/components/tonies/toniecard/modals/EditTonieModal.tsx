@@ -22,6 +22,7 @@ import { CfwTagSettings, CfwTagSettingsHandle } from "../../../cfw/CfwTagSetting
 import { useTeddyCloud } from "../../../../provider/TeddyCloudProvider";
 import { NotificationTypeEnum } from "../../../../types/teddyCloudNotificationTypes";
 import { useCfwTagSettingsVisible } from "../../../cfw/useCfwTagSettingsVisible";
+import { useAcl } from "../../../../provider/AclProvider";
 
 const { useToken } = theme;
 const { Text } = Typography;
@@ -132,6 +133,7 @@ export const EditTonieModal: React.FC<EditTonieModalProps> = ({
     const { t } = useTranslation();
     const { token } = useToken();
     const { addNotification } = useTeddyCloud();
+    const acl = useAcl();
     const cfwRef = useRef<CfwTagSettingsHandle>(null);
     const showCfw = useCfwTagSettingsVisible(open && Boolean(ruid));
     const [cfwDirty, setCfwDirty] = useState(false);
@@ -553,6 +555,7 @@ export const EditTonieModal: React.FC<EditTonieModalProps> = ({
                         ruid={ruid}
                         onDirtyChange={setCfwDirty}
                         onKindChange={setCfwKind}
+                        readOnly={!acl.can("tonie", ruid, "tonie.edit")}
                     />
                 </>
             )}

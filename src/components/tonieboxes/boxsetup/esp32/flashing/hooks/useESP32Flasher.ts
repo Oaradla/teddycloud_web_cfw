@@ -837,7 +837,9 @@ export const useESP32Flasher = (
 
                 setState((prev) => ({
                     ...prev,
-                    state: t("tonieboxes.esp32BoxFlashing.esp32flasher.uploadFailed"),
+                    state:
+                        t("tonieboxes.esp32BoxFlashing.esp32flasher.uploadFailed") +
+                        (body ? `: ${body}` : ""),
                     actionInProgress: false,
                     error: true,
                 }));
@@ -1079,14 +1081,19 @@ export const useESP32Flasher = (
                 chip: flasher.current_chip,
             });
             // a backup named after another box would give this one that box's identity
-            const fileMac = /[0-9a-f]{12}/i.exec(state.flashName)?.[0].toLowerCase();
+            const fileMac = /(?:^|_)(?:ESP32|patched)_([0-9a-f]{12})(?![0-9a-z])/i
+                .exec(state.flashName)?.[1]
+                .toLowerCase();
             const chipMac = (mac ?? "").replace(/:/g, "").toLowerCase();
             if (fileMac && chipMac && fileMac !== chipMac) {
-                throw new Error(
-                    t("tonieboxes.esp32BoxFlashing.esp32flasher.resetOtherBox", {
-                        file: fileMac,
-                        box: chipMac,
-                    }),
+                throw Object.assign(
+                    new Error(
+                        t("tonieboxes.esp32BoxFlashing.esp32flasher.resetOtherBox", {
+                            file: fileMac,
+                            box: chipMac,
+                        }),
+                    ),
+                    { refused: true },
                 );
             }
 
@@ -1158,13 +1165,14 @@ export const useESP32Flasher = (
             setCurrentStep(ESP32_FLASH_STEPS.FINISH);
         } catch (err: any) {
             console.error("[ESP32][Revvox] resetFlash: failed", err);
-            alert(err);
+            if (!err?.refused) alert(err);
 
             setState((prev) => ({
                 ...prev,
-                state:
-                    t("tonieboxes.esp32BoxFlashing.esp32flasher.failedToCommunicate") +
-                    ` ${String(err?.message ?? err)}`,
+                state: err?.refused
+                    ? err.message
+                    : t("tonieboxes.esp32BoxFlashing.esp32flasher.failedToCommunicate") +
+                      ` ${String(err?.message ?? err)}`,
                 connected: false,
                 actionInProgress: false,
                 error: true,
