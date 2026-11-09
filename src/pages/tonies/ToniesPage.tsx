@@ -15,6 +15,10 @@ import LoadingSpinner from "../../components/common/elements/LoadingSpinner";
 import { TonieboxOverlaySelect } from "../../components/tonies/common/elements/TonieboxOverlaySelect";
 import { useTonieboxContentOverlay } from "../../hooks/useTonieboxContentOverlay";
 import { useTonies } from "../../hooks/useTonies";
+import {
+    OwnerFilterSelect,
+    useOwnerFilter,
+} from "../../components/common/elements/OwnerFilterSelect";
 
 export const ToniesPage = () => {
     const { t } = useTranslation();
@@ -32,6 +36,8 @@ export const ToniesPage = () => {
         sort: sortTonies,
         filter: "tag",
     });
+
+    const ownerFilter = useOwnerFilter("tonies");
 
     const handleUpdate = (updatedTonieCard: TonieCardProps) => {
         setTonies((prevTonies) =>
@@ -72,14 +78,16 @@ export const ToniesPage = () => {
                             onChange={changeOverlay}
                             selectProps={{ size: "small", style: { maxWidth: 300 } }}
                         />
+                        <OwnerFilterSelect filter={ownerFilter} />
                     </div>
-                    {loading ? (
+                    {loading || ownerFilter.loading ? (
                         <LoadingSpinner />
                     ) : (
                         <ToniesList
+                            key={ownerFilter.selected.join(",")}
                             showFilter={true}
                             showPagination={true}
-                            tonieCards={tonies}
+                            tonieCards={tonies.filter((tonie) => ownerFilter.keep(tonie.ruid))}
                             overlay={overlay}
                             readOnly={false}
                             defaultLanguage={defaultLanguage}

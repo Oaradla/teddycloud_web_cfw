@@ -47,6 +47,13 @@ export const CFW_ACTIONS: CfwActionDef[] = [
     { action: 16, key: "bothEarsOff", scope: "global", modes: "all", value: "none" },
     { action: 17, key: "idleOffBattery", scope: "global", modes: "none", value: "idleMinutes" },
     { action: 18, key: "idleOffStation", scope: "global", modes: "none", value: "idleMinutes" },
+    {
+        action: 19,
+        key: "sleepTimerOnceGlobal",
+        scope: "global",
+        modes: "none",
+        value: "minutesOnce",
+    },
 ];
 
 export const actionDef = (action: number) => CFW_ACTIONS.find((a) => a.action === action);
@@ -72,6 +79,6 @@ export const defaultValue = (def: CfwActionDef): number => {
 };
 
 /** LED levels of the box */
-export const LED_LEVELS = [0, 2, 1];
+export const LED_LEVELS = [0, 2, 1, 6, 5];
 
 export const VOLUME_STEPS = Array.from({ length: 16 }, (_, i) => i);

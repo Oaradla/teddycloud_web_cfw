@@ -3,7 +3,8 @@ import { useTranslation } from "react-i18next";
 import { Button, Form, InputNumber, Radio, Select, Space, Switch, Tooltip, Typography } from "antd";
 import { DeleteOutlined, PlusOutlined } from "@ant-design/icons";
 
-import { CfwAction, CfwEvent } from "../../api/cfwApi";
+import { CfwAction, CfwEvent, cfwWithoutTemporary } from "../../api/cfwApi";
+import { useCfwBoxes } from "./useCfwBoxes";
 import {
     CFW_ACTIONS,
     CfwScope,
@@ -23,10 +24,13 @@ interface CfwEventFormProps {
     onChange: (event: CfwEvent) => void;
 }
 
-/** an event tag: its scope, up to 16 actions and the feedback tones */
+/** an event tag: its scope, up to 16 actions, the feedback tones and, for the box, until switch-off */
 export const CfwEventForm: React.FC<CfwEventFormProps> = ({ event, onChange }) => {
     const { t } = useTranslation();
     const scope: CfwScope = scopeOfActions(event.actions);
+    const temporary = scope === "global" && Boolean(event.temporary);
+    const { boxes } = useCfwBoxes({ active: temporary });
+    const oldBoxes = temporary ? cfwWithoutTemporary(boxes) : [];
     const setActions = (actions: CfwAction[]) => onChange({ ...event, actions });
     const newAction = (inScope: CfwScope): CfwAction => {
         const def = CFW_ACTIONS.find((d) => d.scope === inScope)!;
@@ -154,7 +158,12 @@ export const CfwEventForm: React.FC<CfwEventFormProps> = ({ event, onChange }) =
                 <Radio.Group
                     value={scope}
                     onChange={(e) =>
-                        e.target.value !== scope && setActions([newAction(e.target.value)])
+                        e.target.value !== scope &&
+                        onChange({
+                            ...event,
+                            temporary: false,
+                            actions: [newAction(e.target.value)],
+                        })
                     }
                 >
                     <Radio.Button value="figure">{t("cfw.event.scopeFigure")}</Radio.Button>
@@ -208,6 +217,28 @@ export const CfwEventForm: React.FC<CfwEventFormProps> = ({ event, onChange }) =
                     {t("cfw.addAction")}
                 </Button>
             </Form.Item>
+            {scope === "global" && (
+                <Form.Item
+                    label={t("cfw.event.temporary")}
+                    tooltip={t("cfw.event.temporaryHint")}
+                    extra={
+                        oldBoxes.length > 0 && (
+                            <Text type="warning">
+                                {t("cfw.event.temporaryOld", {
+                                    boxes: oldBoxes
+                                        .map((b) => b.boxName || b.commonName || b.id)
+                                        .join(", "),
+                                })}
+                            </Text>
+                        )
+                    }
+                >
+                    <Switch
+                        checked={event.temporary ?? false}
+                        onChange={(temporary) => onChange({ ...event, temporary })}
+                    />
+                </Form.Item>
+            )}
             <Form.Item label={t("cfw.event.tones")} tooltip={t("cfw.event.tonesHint")}>
                 <Switch checked={event.tones} onChange={(tones) => onChange({ ...event, tones })} />
             </Form.Item>

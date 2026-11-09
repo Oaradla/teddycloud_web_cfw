@@ -49,6 +49,14 @@ export function macOfCertificate(der: Uint8Array): string {
     return "";
 }
 
+/** the host name or IP of an input, also of a pasted address like "https://teddycloud.local/" */
+export const hostOnly = (input: string) =>
+    input
+        .trim()
+        .replace(/^[a-z]+:\/\//i, "")
+        .replace(/[/:].*$/, "")
+        .replace(/[^a-zA-Z0-9.-]/g, "");
+
 /** cfw/config.txt of the card: where the box finds teddyCloud */
 export function cardConfig(host: string, port: string) {
     const lines = [`host=${host.trim()}`];

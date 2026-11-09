@@ -29,6 +29,7 @@ type UseTonieCardSaveFlowParams = {
     ) => void;
     handleNoCloudClick: () => Promise<void>;
     handleLiveClick: () => Promise<void>;
+    canEdit: boolean;
 };
 
 const notifySuccess = (
@@ -114,6 +115,7 @@ export const useTonieCardSaveFlow = ({
     addNotification,
     handleNoCloudClick,
     handleLiveClick,
+    canEdit,
 }: UseTonieCardSaveFlowParams) => {
     const handleModelSave = async () => {
         try {
@@ -194,6 +196,9 @@ export const useTonieCardSaveFlow = ({
             throw error;
         }
 
+        if (!canEdit) {
+            return;
+        }
         if (!tonieCard.nocloud) {
             await handleNoCloudClick();
         }

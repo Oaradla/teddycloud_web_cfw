@@ -2,6 +2,13 @@ import type { SettingsState } from "../hooks/useSettings";
 
 export type PrintLabelKind = "image" | "text";
 
+/** an error the UI shows as tonies.teddystudio.errors.<code> */
+export class StudioError extends Error {
+    constructor(readonly code: string) {
+        super(code);
+    }
+}
+
 export interface PrintLabelPlacement {
     itemIndex: number;
     kind: PrintLabelKind;
@@ -95,10 +102,10 @@ export const createPrintLayout = (
     const usableHeightMm = pageHeightMm - marginTopMm;
 
     if (usableWidthMm <= 0 || usableHeightMm <= 0) {
-        throw new Error("Paper margins leave no printable area.");
+        throw new StudioError("noPrintableArea");
     }
     if (labelWidthMm > usableWidthMm + EPSILON || labelHeightMm > usableHeightMm + EPSILON) {
-        throw new Error("The configured label does not fit on the selected paper size.");
+        throw new StudioError("labelTooBig");
     }
 
     const horizontalGroupWidthMm =
@@ -110,9 +117,7 @@ export const createPrintLayout = (
         : labelHeightMm;
 
     if (groupHeightMm > usableHeightMm + EPSILON) {
-        throw new Error(
-            "The configured image/text label pair does not fit on the selected paper size.",
-        );
+        throw new StudioError("labelPairTooBig");
     }
 
     const pages: PrintPageLayout[] = [];

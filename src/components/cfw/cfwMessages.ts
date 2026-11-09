@@ -15,6 +15,11 @@ export const CFW_MESSAGE_KEYS: Record<string, string> = {
     "assignment removed": "assignmentRemoved",
     "assigned; the box checks for the update now": "assignedNow",
     "assigned; the box takes it at its next start": "assignedNextStart",
+    'assigned, but "Firmware update" is off for this box, so it is not offered':
+        "assignedUpdateOff",
+    "assigned; the box already runs this image": "assignedRunning",
+    'assigned, but the box has rolled this image back, so it is offered only with "Offer rolled-back image again"':
+        "assignedRolledBack",
     "kind must be profile, event or none": "invalidKind",
     "an event tag needs 1 to 16 actions": "eventActions",
     "unknown command": "unknownCommand",

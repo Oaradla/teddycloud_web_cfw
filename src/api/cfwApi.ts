@@ -21,6 +21,7 @@ export const CFW_CAP = {
     eventTagExt: 1 << 9,
     remote: 1 << 10,
     battery: 1 << 11,
+    temporary: 1 << 13,
 };
 
 /** the last battery report of the box */
@@ -95,6 +96,17 @@ export const cfwRemoteAvailable = (box?: CfwBox) =>
         box.capabilities & CFW_CAP.remote,
     );
 
+/** boxes with the custom firmware whose build cannot hold box settings only until switch-off:
+ * they do not take such an event tag and keep its earlier version */
+export const cfwWithoutTemporary = (boxes: CfwBox[]) =>
+    boxes.filter(
+        (box) =>
+            box.isCfw &&
+            box.helloValid &&
+            cfwEnabledFor(box) &&
+            !(box.capabilities & CFW_CAP.temporary),
+    );
+
 /** null: not set (the box behaves as without the setting) */
 export interface CfwProfile {
     resume: boolean | null;
@@ -116,6 +128,8 @@ export interface CfwAction {
 
 export interface CfwEvent {
     tones: boolean;
+    /** global scope: the box settings hold only until the box switches off */
+    temporary?: boolean;
     actions: CfwAction[];
 }
 
@@ -349,10 +363,7 @@ export const cfwApi = {
         boxId?: string,
     ): Promise<CfwResult> => {
         try {
-            const response = await api.apiPostTeddyCloudSetting(name, value, boxId);
-            // a refused value is answered with 200 "ERROR"
-            const answer = (await response.text()).trim();
-            if (answer === "ERROR") return { ok: false, message: answer };
+            await api.apiPostTeddyCloudSetting(name, value, boxId);
             // only admins write the config; for other users the server has saved it already
             await api.apiTriggerWriteConfigGet().catch((error) => {
                 if (!(error instanceof ResponseError && error.response.status === 403)) throw error;

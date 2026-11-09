@@ -19,6 +19,8 @@ export interface TafSplitResult {
     folder: string;
     tap: string;
     chapters: number;
+    /** where the original moved to; not set when it stayed where it was */
+    original?: string;
 }
 
 const libraryPath = (path: string) => path.replace(/^\/+/, "");
@@ -42,11 +44,13 @@ export const buildTap = (tapPath: string) =>
 /**
  * Writes every chapter of a TAF (path in the library) as a TAF of its own into a folder next
  * to it and creates a playlist there that puts them together into the original TAF again.
+ * With a target folder the new folder goes there and the original stays where it is.
  */
-export const splitTafToPlaylist = (tafPath: string, titles: string[] = []) =>
+export const splitTafToPlaylist = (tafPath: string, titles: string[] = [], target?: string) =>
     post<TafSplitResult>(
         "/api/tafSplit?special=library",
         [`path=${encodeURIComponent(libraryPath(tafPath))}`]
             .concat(titles.map((title) => `title=${encodeURIComponent(title)}`))
+            .concat(target === undefined ? [] : [`target=${encodeURIComponent(target)}`])
             .join("&"),
     );

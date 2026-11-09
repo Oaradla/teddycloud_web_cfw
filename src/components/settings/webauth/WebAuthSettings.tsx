@@ -300,6 +300,7 @@ export const WebAuthSettings = () => {
                         <Flex gap={8} wrap="wrap" align="center">
                             <Input.Password
                                 autoComplete="new-password"
+                                maxLength={128}
                                 placeholder={t("auth.newPassword")}
                                 value={newPassword}
                                 onChange={(event) => setNewPassword(event.target.value)}
@@ -559,7 +560,7 @@ export const WebAuthSettings = () => {
                         },
                     ]}
                 >
-                    <Input autoComplete="off" style={{ minHeight: 44 }} />
+                    <Input autoComplete="off" maxLength={32} style={{ minHeight: 44 }} />
                 </Form.Item>
                 <Form.Item
                     name="password"
@@ -572,7 +573,11 @@ export const WebAuthSettings = () => {
                         },
                     ]}
                 >
-                    <Input.Password autoComplete="new-password" style={{ minHeight: 44 }} />
+                    <Input.Password
+                        autoComplete="new-password"
+                        maxLength={128}
+                        style={{ minHeight: 44 }}
+                    />
                 </Form.Item>
                 {users.length > 0 ? (
                     <Form.Item

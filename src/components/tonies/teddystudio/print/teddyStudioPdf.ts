@@ -6,7 +6,7 @@ import { withBase } from "../../../../utils/basePath";
 import { toImageSrc } from "../../common/utils/imagePathUtils";
 import { loadFlagAsset } from "../../../common/icons/languageFlagAssets";
 import { buildPdfFromJpegPages, type PdfPageImage } from "./pdfDocument";
-import { createPrintLayout, parseMm, type PrintLabelPlacement } from "./printLayout";
+import { createPrintLayout, parseMm, StudioError, type PrintLabelPlacement } from "./printLayout";
 import { ensurePrintFonts } from "./printFonts";
 
 const PRINT_DPI = 300;
@@ -27,8 +27,7 @@ const canvasToJpeg = async (canvas: HTMLCanvasElement): Promise<Uint8Array> => {
     const blob = await new Promise<Blob>((resolve, reject) => {
         try {
             canvas.toBlob(
-                (value) =>
-                    value ? resolve(value) : reject(new Error("Could not encode print page.")),
+                (value) => (value ? resolve(value) : reject(new StudioError("pageEncodeFailed"))),
                 "image/jpeg",
                 0.96,
             );
@@ -51,6 +50,7 @@ export interface TeddyStudioPdfWarning {
     code: "image-load-failed" | "font-load-failed";
     message: string;
     url?: string;
+    reason?: string;
 }
 
 class ImageCache {
@@ -92,6 +92,7 @@ class ImageCache {
                 code: "image-load-failed",
                 message: `Could not load image ${url}: ${reason}`,
                 url,
+                reason,
             });
             return null;
         }
@@ -596,7 +597,7 @@ const renderPage = async (
 
     const ctx = canvas.getContext("2d");
     if (!ctx) {
-        throw new Error("Canvas is not available in this browser.");
+        throw new StudioError("noCanvas");
     }
 
     ctx.imageSmoothingEnabled = true;
@@ -644,7 +645,7 @@ export const createTeddyStudioPdf = async ({
     onWarning,
 }: TeddyStudioPdfOptions): Promise<Blob> => {
     if (items.length === 0) {
-        throw new Error("There are no labels to print.");
+        throw new StudioError("noLabels");
     }
 
     const fontFamilies = new Set<string>([settings.fontFamily || "sans-serif"]);
@@ -660,6 +661,7 @@ export const createTeddyStudioPdf = async ({
         onWarning?.({
             code: "font-load-failed",
             message: `Could not load one or more print fonts: ${reason}`,
+            reason,
         });
     }
 

@@ -11,6 +11,8 @@ import { useAssignSourceToTonie } from "../hooks/useAssignSourceToTonie";
 import { toImageSrc } from "../utils/imagePathUtils";
 import ThumbnailCell from "../elements/ThumbnailCell";
 import LoadingSpinner from "../../../common/elements/LoadingSpinner";
+import ConfirmationDialog from "../../../common/modals/ConfirmationModal";
+import { useAcl } from "../../../../provider/AclProvider";
 
 const { Text } = Typography;
 
@@ -40,6 +42,9 @@ export const AssignTonieModal: React.FC<AssignTonieModalProps> = ({
 
     const [filterText, setFilterText] = useState("");
     const [assigningRuid, setAssigningRuid] = useState<string | null>(null);
+    // a tonie with own content: asked before it is replaced
+    const [replaceFor, setReplaceFor] = useState<TonieCardProps | null>(null);
+    const acl = useAcl();
 
     const sourceFolder = sourcePath.slice(0, sourcePath.lastIndexOf("/") + 1);
 
@@ -58,12 +63,13 @@ export const AssignTonieModal: React.FC<AssignTonieModalProps> = ({
 
     const filteredTonies = useMemo(() => {
         const text = filterText.trim().toLowerCase();
-        if (!text) return tonies;
-        return tonies.filter((tonie) => {
+        const assignable = tonies.filter((tonie) => acl.can("tonie", tonie.ruid, "tonie.assign"));
+        if (!text) return assignable;
+        return assignable.filter((tonie) => {
             const title = `${tonie.tonieInfo.series} ${tonie.tonieInfo.episode}`.toLowerCase();
             return title.includes(text);
         });
-    }, [tonies, filterText]);
+    }, [tonies, filterText, acl]);
 
     const handleAssign = async (tonieCard: TonieCardProps) => {
         setAssigningRuid(tonieCard.ruid);
@@ -127,7 +133,12 @@ export const AssignTonieModal: React.FC<AssignTonieModalProps> = ({
                                 opacity: assigningRuid ? 0.6 : 1,
                             }}
                             onClick={() => {
-                                if (!assigningRuid) {
+                                if (assigningRuid) {
+                                    return;
+                                }
+                                if (tonie.source) {
+                                    setReplaceFor(tonie);
+                                } else {
                                     handleAssign(tonie);
                                 }
                             }}
@@ -148,6 +159,22 @@ export const AssignTonieModal: React.FC<AssignTonieModalProps> = ({
                     )}
                 />
             )}
+            <ConfirmationDialog
+                title={t("fileBrowser.assignToTonie.replaceTitle")}
+                open={replaceFor !== null}
+                okText={t("fileBrowser.assignToTonie.replace")}
+                cancelText={t("fileBrowser.cancel")}
+                content={t("fileBrowser.assignToTonie.replaceText", {
+                    tonie: replaceFor?.tonieInfo.series || replaceFor?.uid,
+                    current: replaceFor?.source.split("/").pop(),
+                })}
+                handleOk={() => {
+                    const tonie = replaceFor;
+                    setReplaceFor(null);
+                    if (tonie) handleAssign(tonie);
+                }}
+                handleCancel={() => setReplaceFor(null)}
+            />
         </Modal>
     );
 };

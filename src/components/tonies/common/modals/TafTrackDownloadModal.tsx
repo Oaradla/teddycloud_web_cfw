@@ -53,14 +53,16 @@ export const buildTafDownloadTracks = (
     trackSeconds: number[] | undefined,
     lengthSeconds: number | undefined,
 ): TafDownloadTrack[] => {
-    const count = Math.max(titles?.length || 0, trackSeconds?.length || 0);
+    // the rows are the chapters of the TAF; the titles of a model only name them when they fit
+    const count = trackSeconds?.length || titles?.length || 0;
+    const names = !trackSeconds?.length || titles?.length === count ? titles : undefined;
     const tracks: TafDownloadTrack[] = [];
     for (let i = 0; i < count; i++) {
         const start = trackSeconds?.[i];
         const next = trackSeconds?.[i + 1] || lengthSeconds;
         tracks.push({
             number: i + 1,
-            title: titles?.[i]?.trim() || "",
+            title: names?.[i]?.trim() || "",
             startSeconds: start,
             durationSeconds: start !== undefined && next !== undefined ? next - start : undefined,
         });

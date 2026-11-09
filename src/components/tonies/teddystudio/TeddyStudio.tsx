@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Alert, Button, Collapse, Divider, Typography } from "antd";
+import { Alert, Button, Collapse, Divider, Popconfirm, Typography } from "antd";
 import {
     ClearOutlined,
     DownloadOutlined,
@@ -27,6 +27,7 @@ import { CustomImages } from "./input/CustomImages";
 import { EditLabelModal } from "./modals/EditLabelModal";
 import { LabelOverridesById, LabelOverrides } from "./types/labelOverrides";
 import { createTeddyStudioPdf } from "./print/teddyStudioPdf";
+import { StudioError } from "./print/printLayout";
 import { createTeddyStudioPdfFilename, downloadPdfBlob, printPdfBlob } from "./print/printFile";
 import SelectImageModal from "../common/modals/SelectImageModal";
 import { AddFolderModal } from "./input/AddFolderModal";
@@ -157,6 +158,13 @@ export const TeddyStudio: React.FC = () => {
         );
     };
 
+    const errorText = (error: unknown) =>
+        error instanceof StudioError
+            ? t(`tonies.teddystudio.errors.${error.code}`)
+            : error instanceof Error
+              ? error.message
+              : String(error);
+
     const handlePdfAction = async (action: "print" | "download") => {
         if (preparingPdfAction !== null || mergedResults.length === 0) return;
 
@@ -170,7 +178,17 @@ export const TeddyStudio: React.FC = () => {
                 labelOverridesById,
                 onWarning: (warning) => {
                     const key = `${warning.code}:${warning.url ?? warning.message}`;
-                    warnings.set(key, warning.message);
+                    warnings.set(
+                        key,
+                        warning.code === "image-load-failed"
+                            ? t("tonies.teddystudio.errors.imageLoadFailed", {
+                                  url: warning.url,
+                                  reason: warning.reason,
+                              })
+                            : t("tonies.teddystudio.errors.fontLoadFailed", {
+                                  reason: warning.reason,
+                              }),
+                    );
                     console.warn(`[TeddyStudio PDF] ${warning.message}`);
                 },
             });
@@ -185,7 +203,7 @@ export const TeddyStudio: React.FC = () => {
                     addNotification(
                         NotificationTypeEnum.Warning,
                         t("tonies.teddystudio.printPage"),
-                        "The browser could not print or open the finished PDF. The PDF was downloaded instead.",
+                        t("tonies.teddystudio.errors.printFallback"),
                         t("tonies.teddystudio.navigationTitle"),
                         undefined,
                         false,
@@ -198,7 +216,9 @@ export const TeddyStudio: React.FC = () => {
                 const description =
                     descriptions.length === 1
                         ? descriptions[0]
-                        : `${descriptions.length} resources could not be loaded while creating the PDF. The affected content was skipped.`;
+                        : t("tonies.teddystudio.errors.resourcesSkipped", {
+                              count: descriptions.length,
+                          });
                 addNotification(
                     NotificationTypeEnum.Warning,
                     action === "print"
@@ -211,7 +231,7 @@ export const TeddyStudio: React.FC = () => {
                 );
             }
         } catch (error) {
-            const description = error instanceof Error ? error.message : String(error);
+            const description = errorText(error);
             addNotification(
                 NotificationTypeEnum.Error,
                 action === "print"
@@ -286,7 +306,7 @@ export const TeddyStudio: React.FC = () => {
             addNotification(
                 NotificationTypeEnum.Error,
                 t("tonies.teddystudio.cutLines"),
-                error instanceof Error ? error.message : String(error),
+                errorText(error),
                 t("tonies.teddystudio.navigationTitle"),
             );
             return;
@@ -414,14 +434,16 @@ export const TeddyStudio: React.FC = () => {
                             justifyContent: "flex-end",
                         }}
                     >
-                        <Button
-                            icon={<ClearOutlined />}
-                            onClick={() => {
-                                clearAll();
-                            }}
+                        <Popconfirm
+                            title={t("tonies.teddystudio.clearConfirm")}
+                            okText={t("tonies.teddystudio.clear")}
+                            okButtonProps={{ danger: true }}
+                            onConfirm={clearAll}
                         >
-                            {t("tonies.teddystudio.clear")}
-                        </Button>
+                            <Button icon={<ClearOutlined />}>
+                                {t("tonies.teddystudio.clear")}
+                            </Button>
+                        </Popconfirm>
                         <Button icon={<ScissorOutlined />} onClick={handleCutLines}>
                             {t("tonies.teddystudio.cutLines")}
                         </Button>

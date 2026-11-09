@@ -392,6 +392,11 @@ export const CustomModelEditor: React.FC<CustomModelEditorProps> = ({
         }
     };
 
+    const saveFailedTitle =
+        modalMode === "create"
+            ? t("tonies.addNewCustomTonieModal.failedToCreate")
+            : t("tonies.customEditor.saveFailed");
+
     /**
      * Saves the entry currently open in the edit modal.
      * Resolves to true only if the entry was persisted, so callers (e.g. save-on-navigate)
@@ -415,7 +420,7 @@ export const CustomModelEditor: React.FC<CustomModelEditorProps> = ({
             // The inline alert sits behind the edit modal, so surface the problem there as well.
             addNotification(
                 NotificationTypeEnum.Error,
-                t("tonies.addNewCustomTonieModal.failedToCreate"),
+                saveFailedTitle,
                 validation.error,
                 t("tonies.customToniesEditorJsonEntry"),
             );
@@ -501,7 +506,7 @@ export const CustomModelEditor: React.FC<CustomModelEditorProps> = ({
         } catch (error) {
             addNotification(
                 NotificationTypeEnum.Error,
-                t("tonies.addNewCustomTonieModal.failedToCreate"),
+                saveFailedTitle,
                 formatApiError(error),
                 t("tonies.customToniesEditorJsonEntry"),
             );
@@ -929,8 +934,8 @@ export const CustomModelEditor: React.FC<CustomModelEditorProps> = ({
         } catch (error) {
             addNotification(
                 NotificationTypeEnum.Error,
-                t("tonies.addNewCustomTonieModal.failedToCreate"),
-                String(error),
+                t("tonies.customEditor.deleteConfirm.failed"),
+                formatApiError(error),
                 t("tonies.customToniesEditorJsonEntry"),
             );
         } finally {

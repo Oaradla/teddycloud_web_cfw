@@ -14,11 +14,12 @@ describe("scopeOfActions", () => {
 
     it("is figure without a known action", () => {
         expect(scopeOfActions([])).toBe("figure");
-        expect(scopeOfActions([{ action: 19 }])).toBe("figure");
+        expect(scopeOfActions([{ action: 20 }])).toBe("figure");
     });
 
     it("is global for the idle power-off times", () => {
         expect(scopeOfActions([{ action: 18 }])).toBe("global");
+        expect(scopeOfActions([{ action: 19 }])).toBe("global");
     });
 });
 

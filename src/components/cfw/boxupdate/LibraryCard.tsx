@@ -262,14 +262,14 @@ export const LibraryCard: React.FC<LibraryCardProps> = ({
                     )}
                     <Popconfirm
                         title={t("cfw.update.deleteConfirm", { build: formatBuild(image.build) })}
-                        onConfirm={async () => {
-                            notify(
-                                await cfwApi.deleteFirmware(image),
-                                t("cfw.update.deleted"),
-                                t("cfw.saveError"),
-                            );
-                            await onChanged();
-                        }}
+                        description={
+                            inUse([image]) && (
+                                <Text type="warning">
+                                    {t("cfw.update.imagesInUse", { boxes: inUse([image]) })}
+                                </Text>
+                            )
+                        }
+                        onConfirm={() => deleteImages([image])}
                     >
                         <Button icon={<DeleteOutlined />} danger />
                     </Popconfirm>

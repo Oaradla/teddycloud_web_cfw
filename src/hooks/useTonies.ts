@@ -5,6 +5,7 @@ import { TeddyCloudApi } from "../api";
 import { defaultAPIConfig } from "../config/defaultApiConfig";
 import { TonieCardProps } from "../types/tonieTypes";
 import { useTeddyCloud } from "../provider/TeddyCloudProvider";
+import { useAcl } from "../provider/AclProvider";
 import { NotificationTypeEnum } from "../types/teddyCloudNotificationTypes";
 
 const api = new TeddyCloudApi(defaultAPIConfig());
@@ -32,6 +33,7 @@ export const useTonies = (options: UseToniesOptions = {}) => {
 
     const { t } = useTranslation();
     const { addNotification, toniesRefreshTrigger } = useTeddyCloud();
+    const acl = useAcl();
 
     const [tonies, setTonies] = useState<TonieCardProps[]>([]);
     const [defaultLanguage, setDefaultLanguage] = useState<string>("");
@@ -40,6 +42,8 @@ export const useTonies = (options: UseToniesOptions = {}) => {
     useEffect(() => {
         const fetchTonies = async () => {
             setLoading(true);
+            // a tonie placed since the login may belong to the user now
+            void acl.refresh();
 
             try {
                 let tonieData: TonieCardProps[];

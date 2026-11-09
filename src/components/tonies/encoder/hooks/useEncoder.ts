@@ -16,6 +16,7 @@ import {
 } from "../../../../utils/validation/fieldInputValidator";
 import { ffmpegSupportedExtensions } from "../../../../utils/files/ffmpegSupportedExtensions";
 import { createQueryString } from "../../../../utils/browser/queryParams";
+import { confirmReplace } from "../../../../utils/teddycloud/confirmReplace";
 import {
     loadWasmEncoder,
     isWasmEncoderAvailable,
@@ -439,7 +440,16 @@ export const useEncoder = () => {
         return true;
     };
 
+    /** asks before an existing TAF (or playlist folder) of that name is replaced */
+    const replaceConfirmed = () =>
+        confirmReplace(
+            t,
+            `path=${encodeURIComponent(getPathFromNodeId(treeNodeId))}&special=library`,
+            [splitIntoPlaylist && fileList.length > 1 ? tafFilename : tafFilename + ".taf"],
+        );
+
     const handleUpload = async () => {
+        if (!(await replaceConfirmed())) return;
         if (await uploadParts("server")) return;
         setUploading(true);
         const formData = new FormData();
@@ -532,6 +542,7 @@ export const useEncoder = () => {
     // -------------------------------------------------
 
     const handleWasmUpload = async () => {
+        if (!(await replaceConfirmed())) return;
         if (await uploadParts("browser")) return;
         setUploading(true);
         setProcessing(true);

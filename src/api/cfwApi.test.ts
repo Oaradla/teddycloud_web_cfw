@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { formatBuild } from "./cfwApi";
+import { CFW_CAP, CfwBox, cfwWithoutTemporary, formatBuild } from "./cfwApi";
 
 const savedTz = process.env.TZ;
 
@@ -31,5 +31,19 @@ describe("formatBuild", () => {
 
     it("shows a dash for no build", () => {
         expect(formatBuild(0)).toBe("-");
+    });
+});
+
+describe("cfwWithoutTemporary", () => {
+    const box = (id: string, isCfw: boolean, capabilities: number) =>
+        ({ id, isCfw, helloValid: true, capabilities, settings: { enabled: true } }) as CfwBox;
+
+    it("lists the custom firmware boxes without the until-switch-off capability", () => {
+        const boxes = [
+            box("old", true, CFW_CAP.eventTags),
+            box("new", true, CFW_CAP.temporary),
+            box("ofw", false, 0),
+        ];
+        expect(cfwWithoutTemporary(boxes).map((b) => b.id)).toEqual(["old"]);
     });
 });

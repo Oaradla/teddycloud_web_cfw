@@ -228,7 +228,31 @@ export const AccountSecurity = () => {
                             },
                         ]}
                     >
-                        <Input.Password autoComplete="new-password" style={{ minHeight: 44 }} />
+                        <Input.Password
+                            autoComplete="new-password"
+                            maxLength={128}
+                            style={{ minHeight: 44 }}
+                        />
+                    </Form.Item>
+                    <Form.Item
+                        name="repeatPassword"
+                        label={t("auth.repeatPassword")}
+                        dependencies={["newPassword"]}
+                        rules={[
+                            { required: true, message: t("auth.passwordRequired") },
+                            ({ getFieldValue }) => ({
+                                validator: (_, value) =>
+                                    !value || value === getFieldValue("newPassword")
+                                        ? Promise.resolve()
+                                        : Promise.reject(new Error(t("auth.passwordMismatch"))),
+                            }),
+                        ]}
+                    >
+                        <Input.Password
+                            autoComplete="new-password"
+                            maxLength={128}
+                            style={{ minHeight: 44 }}
+                        />
                     </Form.Item>
                     <Flex gap={8}>
                         <Button

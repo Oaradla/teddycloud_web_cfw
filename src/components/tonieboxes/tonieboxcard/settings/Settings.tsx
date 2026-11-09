@@ -15,6 +15,7 @@ import SettingsDataHandler from "../../../../data/SettingsDataHandler";
 import { useTriggerWriteConfig } from "../hooks/useTriggerWriteConfig";
 import { shownInBoxDialog } from "../../../cfw/cfwSettingsVisibility";
 import { useCfwBoxDialog } from "../../../cfw/useCfwBoxDialog";
+import { useAcl } from "../../../../provider/AclProvider";
 
 const api = new TeddyCloudApi(defaultAPIConfig());
 
@@ -25,6 +26,8 @@ export const Settings: React.FC<{ overlay: string; onClose?: () => void }> = ({
     onClose,
 }) => {
     const { t } = useTranslation();
+    // the level is a server setting: only admins may change it
+    const acl = useAcl();
     const { token } = useToken();
     const { addNotification } = useTeddyCloud();
     const triggerWriteConfig = useTriggerWriteConfig();
@@ -191,19 +194,24 @@ export const Settings: React.FC<{ overlay: string; onClose?: () => void }> = ({
                             />
                         </Form>
                     </Formik>
-                    <Divider>{t("settings.levelLabel")}</Divider>
-                    <Radio.Group
-                        value={settingsLevel}
-                        onChange={(e) => handleChange(e.target.value)}
-                        style={{ display: "flex", justifyContent: "center", marginTop: 8 }}
-                        disabled={
-                            loading || SettingsDataHandler.getInstance().hasUnchangedChanges()
-                        }
-                    >
-                        <Radio.Button value="1">Basic</Radio.Button>
-                        <Radio.Button value="2">Detail</Radio.Button>
-                        <Radio.Button value="3">Expert</Radio.Button>
-                    </Radio.Group>
+                    {acl.admin && (
+                        <>
+                            <Divider>{t("settings.levelLabel")}</Divider>
+                            <Radio.Group
+                                value={settingsLevel}
+                                onChange={(e) => handleChange(e.target.value)}
+                                style={{ display: "flex", justifyContent: "center", marginTop: 8 }}
+                                disabled={
+                                    loading ||
+                                    SettingsDataHandler.getInstance().hasUnchangedChanges()
+                                }
+                            >
+                                <Radio.Button value="1">Basic</Radio.Button>
+                                <Radio.Button value="2">Detail</Radio.Button>
+                                <Radio.Button value="3">Expert</Radio.Button>
+                            </Radio.Group>
+                        </>
+                    )}
                     {savePanel}
                 </>
             )}

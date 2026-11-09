@@ -19,6 +19,9 @@ import { TafDownloadPanel, buildTafDownloadTracks } from "./TafTrackDownloadModa
 import { toSameOriginUrl } from "../../../../utils/downloads/tafDownload";
 import { sanitizeDownloadName } from "../../../../utils/files/sanitizeDownloadName";
 import { withBase } from "../../../../utils/basePath";
+import { cfwApi } from "../../../../api/cfwApi";
+import { useCfwTagSettingsVisible } from "../../../cfw/useCfwTagSettingsVisible";
+import { useAcl } from "../../../../provider/AclProvider";
 
 const api = new TeddyCloudApi(defaultAPIConfig());
 
@@ -57,6 +60,23 @@ const TonieInformationModal: React.FC<InformationModalProps> = ({
     const [informationFromSource, setInformationFromSource] = useState<boolean>(false);
     const [sourcePic, setSourcePic] = useState<string>("");
     const [sourceTracks, setSourceTracks] = useState<string[]>([]);
+
+    // an event tag plays nothing, so its content's tracks do not apply
+    const ruid = "ruid" in tonieCardOrTAFRecord ? tonieCardOrTAFRecord.ruid : "";
+    const showCfw = useCfwTagSettingsVisible(open && Boolean(ruid));
+    const [isEventTag, setIsEventTag] = useState(false);
+    useEffect(() => {
+        setIsEventTag(false);
+        if (!showCfw) return;
+        let current = true;
+        cfwApi
+            .tag(ruid)
+            .then((tag) => current && setIsEventTag(tag.kind === "event"))
+            .catch(() => undefined);
+        return () => {
+            current = false;
+        };
+    }, [showCfw, ruid]);
 
     useEffect(() => {
         if (
@@ -161,6 +181,10 @@ const TonieInformationModal: React.FC<InformationModalProps> = ({
     };
 
     // hide tag functions
+    const acl = useAcl();
+    const borrowed = !!ruid && !!acl.tonies[ruid.toUpperCase()]?.borrowed;
+    const canHide = !!ruid && !readOnly && (borrowed || acl.can("tonie", ruid, "tonie.edit"));
+
     const showHideConfirmDialog = () => {
         setIsConfirmHideModalOpen(true);
     };
@@ -191,6 +215,7 @@ const TonieInformationModal: React.FC<InformationModalProps> = ({
                     t("tonies.navigationTitle"),
                 );
                 onHide(tonieCardOrTAFRecord.ruid);
+                if (borrowed) acl.refresh();
             } catch (error) {
                 addNotification(
                     NotificationTypeEnum.Error,
@@ -244,16 +269,10 @@ const TonieInformationModal: React.FC<InformationModalProps> = ({
     const informationModalFooter = (
         <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
             <div>
-                {"ruid" in tonieCardOrTAFRecord && tonieCardOrTAFRecord.ruid ? (
-                    !readOnly ? (
-                        <Button onClick={showHideConfirmDialog}>
-                            {t("tonies.informationModal.hideTag")}
-                        </Button>
-                    ) : (
-                        ""
-                    )
-                ) : (
-                    ""
+                {canHide && (
+                    <Button onClick={showHideConfirmDialog}>
+                        {t("tonies.informationModal.hideTag")}
+                    </Button>
                 )}
             </div>
             <Button type="primary" onClick={onClose}>
@@ -352,7 +371,9 @@ const TonieInformationModal: React.FC<InformationModalProps> = ({
                     ) : (
                         ""
                     )}
-                    {downloadTracks.length > 0 ? (
+                    {isEventTag ? (
+                        <></>
+                    ) : downloadTracks.length > 0 ? (
                         <>
                             <strong>{t("tonies.infoModal.tracklist")}</strong>
                             {canDownloadAudio ? (

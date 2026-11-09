@@ -525,7 +525,8 @@ export class TeddyCloudApi extends runtime.BaseAPI {
         );
 
         if (!response.ok) {
-            throw new Error(`Error: ${response.status} ${response.statusText}`);
+            const reason = await response.text().catch(() => "");
+            throw new Error(reason || `Error: ${response.status} ${response.statusText}`);
         }
         return response;
     }

@@ -60,6 +60,8 @@ const DeleteFilesModal: React.FC<DeleteFilesModalProps> = ({
     // custom tonies used only by what is deleted
     const [orphans, setOrphans] = useState<string[]>([]);
     const [deleteOrphans, setDeleteOrphans] = useState(true);
+    // tonies that play what is deleted
+    const [users, setUsers] = useState<string[]>([]);
     const modelsQuery = orphans.length > 0 && deleteOrphans ? "&models=1" : "";
 
     const selectedFilePaths = () =>
@@ -80,6 +82,7 @@ const DeleteFilesModal: React.FC<DeleteFilesModalProps> = ({
     useEffect(() => {
         setOrphans([]);
         setDeleteOrphans(true);
+        setUsers([]);
         if (special !== "library" || (!singleOpen && !multipleOpen)) return;
         const paths = (singleOpen ? [deletePath] : selectedFilePaths()).map((p) =>
             p.replace(/^\/+/, ""),
@@ -89,11 +92,28 @@ const DeleteFilesModal: React.FC<DeleteFilesModalProps> = ({
             .then((response) => (response.ok ? response.json() : []))
             .then((names) => current && Array.isArray(names) && setOrphans(names))
             .catch(() => undefined);
+        api.apiGetTagIndexMergedAllOverlays(true)
+            .then((tonies) => {
+                const names = tonies
+                    .filter((tonie) => {
+                        const source = tonie.source?.startsWith("lib://")
+                            ? tonie.source.slice(6)
+                            : "";
+                        return paths.some((p) => source === p || source.startsWith(p + "/"));
+                    })
+                    .map((tonie) => tonie.tonieInfo?.series || tonie.ruid);
+                if (current) setUsers([...new Set(names)]);
+            })
+            .catch(() => undefined);
         return () => {
             current = false;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [singleOpen, multipleOpen]);
+
+    const usedByNote = users.length
+        ? " " + t("fileBrowser.deleteUsedBy", { names: users.join(", ") })
+        : "";
 
     const orphansCheckbox =
         orphans.length > 0 ? (
@@ -216,8 +236,8 @@ const DeleteFilesModal: React.FC<DeleteFilesModalProps> = ({
                 cancelText={t("fileBrowser.cancel")}
                 content={
                     isFolder(fileToDelete)
-                        ? t("fileBrowser.confirmDeleteFolderDialog", { fileToDelete })
-                        : t("fileBrowser.confirmDeleteDialog", { fileToDelete })
+                        ? t("fileBrowser.confirmDeleteFolderDialog", { fileToDelete }) + usedByNote
+                        : t("fileBrowser.confirmDeleteDialog", { fileToDelete }) + usedByNote
                 }
                 contentDetails={orphansCheckbox}
                 handleOk={handleConfirmSingleDelete}
@@ -230,7 +250,8 @@ const DeleteFilesModal: React.FC<DeleteFilesModalProps> = ({
                 cancelText={t("fileBrowser.cancel")}
                 content={
                     t("fileBrowser.confirmMultipleDeleteDialog") +
-                    (foldersSelected ? " " + t("fileBrowser.confirmDeleteFoldersNote") : "")
+                    (foldersSelected ? " " + t("fileBrowser.confirmDeleteFoldersNote") : "") +
+                    usedByNote
                 }
                 contentDetails={
                     <>

@@ -224,6 +224,7 @@ export const LoginPage = ({ themeSwitch }: { themeSwitch: ReactNode }) => {
                         <Input.Password
                             prefix={<KeyOutlined />}
                             autoComplete="new-password"
+                            maxLength={128}
                             style={{ minHeight: 44 }}
                         />
                     </Form.Item>
@@ -244,6 +245,7 @@ export const LoginPage = ({ themeSwitch }: { themeSwitch: ReactNode }) => {
                         <Input.Password
                             prefix={<KeyOutlined />}
                             autoComplete="new-password"
+                            maxLength={128}
                             style={{ minHeight: 44 }}
                         />
                     </Form.Item>

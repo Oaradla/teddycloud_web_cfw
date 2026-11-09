@@ -8,37 +8,23 @@ import {
     fetchAclCatalog,
     fetchAclEntry,
     fetchAclUsers,
-    fetchBoxSettingNames,
     saveAclEntry,
     type AclScope,
     type AclUser,
 } from "../../../utils/auth/aclApi";
 import { authErrorText } from "../../settings/webauth/authFormat";
-import { shownInBoxDialog } from "../../cfw/cfwSettingsVisibility";
-import { useCfwBoxDialog } from "../../cfw/useCfwBoxDialog";
 
 const { Text } = Typography;
 
-type Row = { user: string; rights: string[]; settings: string[] };
+type Row = { user: string; rights: string[] };
 
 const EVERYONE = "*";
 
 function toRow(user: string, list: string): Row {
-    const parts = list.split(/[,\s]+/).filter(Boolean);
-    return {
-        user,
-        rights: parts.filter((p) => !p.startsWith("box.setting:")),
-        settings: parts
-            .filter((p) => p.startsWith("box.setting:"))
-            .map((p) => p.slice("box.setting:".length)),
-    };
+    return { user, rights: list.split(/[,\s]+/).filter(Boolean) };
 }
 
-function fromRow(row: Row): string {
-    return [...row.rights, ...row.settings.map((s) => `box.setting:${s}`)].join(", ");
-}
-
-/** Owners (admins only) and shares of a box, tonie or library folder. */
+/** Owners of a box or tonie (set by its owners and admins); owners (admins only) and shares of a library folder. */
 export const ShareDialog = ({
     open,
     type,
@@ -61,17 +47,8 @@ export const ShareDialog = ({
     const [rows, setRows] = useState<Row[]>([]);
     const [users, setUsers] = useState<AclUser[]>([]);
     const [rights, setRights] = useState<string[]>([]);
-    const [boxSettings, setBoxSettings] = useState<{ name: string; overlayed: boolean }[]>([]);
-    /* only what the settings dialog of this box shows */
-    const cfw = useCfwBoxDialog(type === "box" ? id : "", false);
-    const settingNames = useMemo(
-        () =>
-            boxSettings
-                .filter((s) => shownInBoxDialog(s.name, cfw, s.overlayed))
-                .map((s) => s.name),
-        [boxSettings, cfw.enabled, cfw.isCfwBox, cfw.forced],
-    );
     const [inherited, setInherited] = useState<string | undefined>(undefined);
+    const ownersOnly = type !== "folder";
 
     useEffect(() => {
         if (!open) return;
@@ -85,7 +62,6 @@ export const ShareDialog = ({
                     fetchAclCatalog(),
                     fetchAclUsers(),
                 ]);
-                const names = type === "box" ? await fetchBoxSettingNames(id).catch(() => []) : [];
                 if (cancelled) return;
                 setOwners(entry.owners ?? []);
                 setRows(
@@ -108,7 +84,6 @@ export const ShareDialog = ({
                         )
                         .map((r) => r.name),
                 );
-                setBoxSettings(names);
             } catch (err) {
                 if (!cancelled) setError(authErrorText(t, err));
             } finally {
@@ -136,13 +111,20 @@ export const ShareDialog = ({
     const update = (index: number, change: Partial<Row>) =>
         setRows((list) => list.map((row, i) => (i === index ? { ...row, ...change } : row)));
 
+    // the server refuses an owner list without owners from a non-admin
+    const ownerMissing = ownersOnly && !acl.admin && owners.length === 0;
+
     const save = async () => {
         setSaving(true);
         setError(null);
         try {
             const shares: Record<string, string> = {};
-            rows.filter((r) => r.user).forEach((r) => (shares[r.user] = fromRow(r)));
-            await saveAclEntry(type, id, acl.admin ? { owners, shares } : { shares });
+            rows.filter((r) => r.user).forEach((r) => (shares[r.user] = r.rights.join(", ")));
+            await saveAclEntry(
+                type,
+                id,
+                ownersOnly ? { owners } : acl.admin ? { owners, shares } : { shares },
+            );
             await acl.refresh();
             onClose();
         } catch (err) {
@@ -155,12 +137,13 @@ export const ShareDialog = ({
     return (
         <Modal
             open={open}
-            title={t("sharing.title", { name: title })}
+            title={t(ownersOnly ? "sharing.ownersTitle" : "sharing.title", { name: title })}
             onCancel={onClose}
             onOk={() => void save()}
             okText={t("sharing.save")}
             cancelText={t("common.cancel")}
             confirmLoading={saving}
+            okButtonProps={{ disabled: loading || ownerMissing }}
             width={720}
             destroyOnHidden
         >
@@ -184,109 +167,104 @@ export const ShareDialog = ({
                             mode="multiple"
                             style={{ width: "100%", marginTop: 4 }}
                             value={owners}
-                            disabled={!acl.admin}
+                            disabled={!acl.admin && !ownersOnly}
                             onChange={setOwners}
                             options={users
-                                .filter((u) => u.level !== "guest")
+                                .filter((u) => ownersOnly || u.level !== "guest")
                                 .map((u) => ({ value: u.username, label: u.username }))}
                             placeholder={t("sharing.noOwners")}
                         />
-                        <Text type="secondary" style={{ fontSize: 12 }}>
-                            {acl.admin ? t("sharing.ownersHint") : t("sharing.ownersAdminOnly")}
+                        <Text type={ownerMissing ? "danger" : "secondary"} style={{ fontSize: 12 }}>
+                            {ownerMissing
+                                ? t("sharing.ownerRequired")
+                                : ownersOnly
+                                  ? t("sharing.ownersOnlyHint")
+                                  : acl.admin
+                                    ? t("sharing.ownersHint")
+                                    : t("sharing.ownersAdminOnly")}
                         </Text>
                     </div>
-                    <div>
-                        <Text strong>{t("sharing.shares")}</Text>
-                        {rows.length === 0 ? (
-                            <div>
-                                <Text type="secondary">{t("sharing.noShares")}</Text>
-                            </div>
-                        ) : null}
-                        {rows.map((row, index) => (
-                            <Flex
-                                key={index}
-                                vertical
-                                gap={8}
-                                style={{
-                                    padding: "12px 0",
-                                    borderBottom: "1px solid rgba(128,128,128,0.2)",
-                                }}
-                            >
-                                <Flex gap={8} align="center">
-                                    <Select
-                                        style={{ flex: 1 }}
-                                        value={row.user || undefined}
-                                        placeholder={t("sharing.pickUser")}
-                                        onChange={(user) => update(index, { user })}
-                                        options={userOptions.filter(
-                                            (o) =>
-                                                o.value === row.user ||
-                                                !rows.some((r) => r.user === o.value),
-                                        )}
-                                        showSearch
-                                    />
-                                    <Button
-                                        type="text"
-                                        danger
-                                        icon={<DeleteOutlined />}
-                                        aria-label={t("sharing.remove")}
-                                        onClick={() =>
-                                            setRows((list) => list.filter((_, i) => i !== index))
+                    {ownersOnly ? null : (
+                        <div>
+                            <Text strong>{t("sharing.shares")}</Text>
+                            {rows.length === 0 ? (
+                                <div>
+                                    <Text type="secondary">{t("sharing.noShares")}</Text>
+                                </div>
+                            ) : null}
+                            {rows.map((row, index) => (
+                                <Flex
+                                    key={index}
+                                    vertical
+                                    gap={8}
+                                    style={{
+                                        padding: "12px 0",
+                                        borderBottom: "1px solid rgba(128,128,128,0.2)",
+                                    }}
+                                >
+                                    <Flex gap={8} align="center">
+                                        <Select
+                                            style={{ flex: 1 }}
+                                            value={row.user || undefined}
+                                            placeholder={t("sharing.pickUser")}
+                                            onChange={(user) => update(index, { user })}
+                                            options={userOptions.filter(
+                                                (o) =>
+                                                    o.value === row.user ||
+                                                    !rows.some((r) => r.user === o.value),
+                                            )}
+                                            showSearch
+                                        />
+                                        <Button
+                                            type="text"
+                                            danger
+                                            icon={<DeleteOutlined />}
+                                            aria-label={t("sharing.remove")}
+                                            onClick={() =>
+                                                setRows((list) =>
+                                                    list.filter((_, i) => i !== index),
+                                                )
+                                            }
+                                            style={{ minWidth: 44, minHeight: 44 }}
+                                        />
+                                    </Flex>
+                                    <Checkbox.Group
+                                        value={row.rights}
+                                        onChange={(values) =>
+                                            update(index, {
+                                                // rights without a checkbox here (e.g. "box.*" set by an admin) stay
+                                                rights: [
+                                                    ...row.rights.filter(
+                                                        (r) => !rights.includes(r),
+                                                    ),
+                                                    ...(values as string[]),
+                                                ],
+                                            })
                                         }
-                                        style={{ minWidth: 44, minHeight: 44 }}
-                                    />
-                                </Flex>
-                                <Checkbox.Group
-                                    value={row.rights}
-                                    onChange={(values) =>
-                                        update(index, {
-                                            // rights without a checkbox here (e.g. "box.*" set by an admin) stay
-                                            rights: [
-                                                ...row.rights.filter((r) => !rights.includes(r)),
-                                                ...(values as string[]),
-                                            ],
-                                        })
-                                    }
-                                    options={rights.map((r) => ({
-                                        value: r,
-                                        label: t(`sharing.rights.${r}`),
-                                    }))}
-                                />
-                                {type === "box" && !row.rights.includes("box.settings") ? (
-                                    <Select
-                                        mode="multiple"
-                                        allowClear
-                                        value={row.settings}
-                                        onChange={(settings) => update(index, { settings })}
-                                        placeholder={t("sharing.singleSettings")}
-                                        options={settingNames.map((n) => ({
-                                            value: n,
-                                            label: t(
-                                                `settings.options.${n.replace(/\./g, "_")}.label`,
-                                                n,
-                                            ),
+                                        options={rights.map((r) => ({
+                                            value: r,
+                                            label: t(`sharing.rights.${r}`),
                                         }))}
                                     />
-                                ) : null}
-                            </Flex>
-                        ))}
-                        <Button
-                            icon={<PlusOutlined />}
-                            onClick={() =>
-                                setRows((list) => [
-                                    ...list,
-                                    {
-                                        user: "",
-                                        rights: [`${type}.${type === "folder" ? "read" : "view"}`],
-                                        settings: [],
-                                    },
-                                ])
-                            }
-                            style={{ marginTop: 12, minHeight: 44 }}
-                        >
-                            {t("sharing.add")}
-                        </Button>
-                    </div>
+                                </Flex>
+                            ))}
+                            <Button
+                                icon={<PlusOutlined />}
+                                onClick={() =>
+                                    setRows((list) => [
+                                        ...list,
+                                        {
+                                            user: "",
+                                            rights: ["folder.read"],
+                                        },
+                                    ])
+                                }
+                                style={{ marginTop: 12, minHeight: 44 }}
+                            >
+                                {t("sharing.add")}
+                            </Button>
+                        </div>
+                    )}
                 </Flex>
             )}
         </Modal>

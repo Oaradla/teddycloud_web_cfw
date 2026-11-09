@@ -196,7 +196,10 @@ export const SelectImageModal: React.FC<SelectImageModalProps> = ({
     const handleUploadRequest = async (options: any) => {
         const { onSuccess, onError } = options;
         // big photos are scaled down (and become WebP) before they go to teddyCloud
-        const file: File = await shrinkImage(options.file).catch(() => options.file);
+        const small: File = await shrinkImage(options.file).catch(() => options.file);
+        // a picture of the same name may be used by other tonies: never replace it
+        const name = `${Date.now().toString(36)}-${small.name.replace(/[^\w.-]+/g, "_")}`;
+        const file = new File([small], name, { type: small.type });
         const key = "upload-img-" + Date.now();
         addLoadingNotification(
             key,
@@ -228,6 +231,8 @@ export const SelectImageModal: React.FC<SelectImageModalProps> = ({
                     t("fileBrowser.title"),
                 );
                 setRebuildTrigger((prev) => prev + 1);
+                // own pictures may be deleted: the rights name them
+                void acl.refresh();
                 if (IMAGE_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext))) {
                     setCustomSelections([toCustomImgWebPath(uploadPath, file.name)]);
                 }
@@ -236,7 +241,7 @@ export const SelectImageModal: React.FC<SelectImageModalProps> = ({
                 addNotification(
                     NotificationTypeEnum.Error,
                     t("fileBrowser.upload.uploadedFileFailed"),
-                    t("fileBrowser.upload.uploadFailedForFile", { file: file.name }),
+                    `${t("fileBrowser.upload.uploadFailedForFile", { file: file.name })} ${await response.text()}`,
                     t("fileBrowser.title"),
                 );
                 onError?.(new Error("Upload failed"));

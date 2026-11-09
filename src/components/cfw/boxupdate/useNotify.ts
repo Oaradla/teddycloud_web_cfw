@@ -10,7 +10,12 @@ export const useNotify = () => {
     const { addNotification } = useTeddyCloud();
     return (result: CfwResult, success: string, failure: string) =>
         addNotification(
-            result.ok ? NotificationTypeEnum.Success : NotificationTypeEnum.Error,
+            !result.ok
+                ? NotificationTypeEnum.Error
+                : // assigned, but the box will not get it (update off, rolled back)
+                  result.message.startsWith("assigned, but")
+                  ? NotificationTypeEnum.Warning
+                  : NotificationTypeEnum.Success,
             result.ok ? success : failure,
             cfwMessage(t, result.message),
             t("cfw.update.navigationTitle"),

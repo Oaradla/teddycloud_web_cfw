@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { AclRight } from "./aclApi";
-import { buildRightsTree, checkedToList, leaves, listToChecked } from "./rightsTree";
+import { buildRightsTree, checkedToList, leaves, listToChecked, listToNodes } from "./rightsTree";
 
 const r = (name: string, adminOnly = false): AclRight => ({
     name,
@@ -73,5 +73,21 @@ describe("rights tree", () => {
         const tonies = buildRightsTree(rights, [], ["tonie"]);
         expect(checkedToList(tonies, ["tonie.view"])).toBe("tonie.view");
         expect(checkedToList(tonies, ["tonie.view", "tonie.edit"])).toBe("tonie.*");
+    });
+});
+
+describe("listToNodes", () => {
+    it("names each entry of a stored list by its kind", () => {
+        expect(
+            listToNodes("tonie.view, tonie.*,box.setting:cfw.*  box.setting:cfw.volume *").map(
+                (n) => [n.kind, n.label],
+            ),
+        ).toEqual([
+            ["right", "tonie.view"],
+            ["scope", "tonie"],
+            ["group", "box.setting:cfw"],
+            ["setting", "box.setting:cfw.volume"],
+            ["all", "*"],
+        ]);
     });
 });

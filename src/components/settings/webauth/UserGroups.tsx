@@ -39,15 +39,24 @@ export const UserGroups = ({ catalog, tree, tonieTree, loadError, reload }: Prop
     const [saved, setSaved] = useState(false);
     const [saving, setSaving] = useState(false);
     const [toDelete, setToDelete] = useState<Draft | null>(null);
+    const [levelsDirty, setLevelsDirty] = useState(false);
 
+    /* a new catalog (e.g. after deleting a group) keeps the changes not saved yet */
     useEffect(() => {
         if (!catalog) return;
-        setLevels({
-            user: catalog.levelLimits.user ?? "*",
-            guest: catalog.levelLimits.guest ?? "",
-            unassignedTonie: catalog.unassigned.tonie ?? "",
-        });
-        setGroups((catalog.groups ?? []).map((g) => ({ ...g, key: `g:${g.id}` })));
+        if (!levelsDirty) {
+            setLevels({
+                user: catalog.levelLimits.user ?? "*",
+                guest: catalog.levelLimits.guest ?? "",
+                unassignedTonie: catalog.unassigned.tonie ?? "",
+            });
+        }
+        setGroups((list) => [
+            ...(catalog.groups ?? []).map(
+                (g) => list.find((d) => d.dirty && d.id === g.id) ?? { ...g, key: `g:${g.id}` },
+            ),
+            ...list.filter((d) => d.dirty && !d.id),
+        ]);
     }, [catalog]);
 
     useEffect(() => {
@@ -56,6 +65,7 @@ export const UserGroups = ({ catalog, tree, tonieTree, loadError, reload }: Prop
 
     const changeLevel = (key: keyof typeof levels) => (value: string) => {
         setSaved(false);
+        setLevelsDirty(true);
         setLevels((l) => ({ ...l, [key]: value }));
     };
     const changeGroup = (key: string, change: Partial<AclGroup>) => {
@@ -101,13 +111,18 @@ export const UserGroups = ({ catalog, tree, tonieTree, loadError, reload }: Prop
         setSaving(true);
         try {
             await saveAclLevels(levels);
+            setLevelsDirty(false);
             for (const g of groups.filter((g) => g.dirty)) {
-                await saveAclGroup({
+                const id = await saveAclGroup({
                     ...(g.id ? { id: g.id } : {}),
                     name: g.name.trim(),
                     base: g.base,
                     rights: g.rights,
                 });
+                setGroups((list) =>
+                    list.map((d) => (d.key === g.key ? { ...d, dirty: false } : d)),
+                );
+                if (g.key === active) setActive(`g:${id}`);
             }
             setSaved(true);
             reload();

@@ -15,7 +15,6 @@ import {
 } from "antd";
 import {
     CaretRightOutlined,
-    CloudSyncOutlined,
     PauseOutlined,
     PlayCircleOutlined,
     ReloadOutlined,
@@ -272,13 +271,6 @@ export const CfwRemoteModal: React.FC<CfwRemoteModalProps> = ({ boxId, boxName, 
             </Text>
 
             <Divider />
-            <Button
-                icon={<CloudSyncOutlined />}
-                disabled={!remote}
-                onClick={() => send("updateCheck")}
-            >
-                {t("cfw.remote.updateCheck")}
-            </Button>
             {status?.lastResult && (
                 <Text type="secondary" style={{ display: "block", marginTop: 8, fontSize: 12 }}>
                     {t("cfw.remote.lastResult", {

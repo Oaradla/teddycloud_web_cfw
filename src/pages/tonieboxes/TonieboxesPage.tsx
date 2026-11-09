@@ -12,6 +12,10 @@ import { CfwControls } from "../../components/cfw/CfwControls";
 import { useCfwEnabled } from "../../components/cfw/useCfwEnabled";
 import { TonieboxesSubNav } from "../../components/tonieboxes/TonieboxesSubNav";
 import { TonieboxesList } from "../../components/tonieboxes/tonieboxeslist/TonieboxesList";
+import {
+    OwnerFilterSelect,
+    useOwnerFilter,
+} from "../../components/common/elements/OwnerFilterSelect";
 
 import { useNewBoxesAllowed } from "../../hooks/getsettings/useGetSettingNewBoxesAllowed";
 import { useTonieboxes } from "../../hooks/useTonieboxes";
@@ -22,6 +26,7 @@ export const TonieboxesPage = () => {
     const newBoxesAllowed = useNewBoxesAllowed();
     const { tonieboxes } = useTonieboxes();
     const cfwEnabled = useCfwEnabled();
+    const ownerFilter = useOwnerFilter("boxes");
 
     return (
         <>
@@ -38,7 +43,12 @@ export const TonieboxesPage = () => {
                 />
 
                 <StyledContent>
-                    <h1>{t("tonieboxes.title")}</h1>
+                    <div
+                        style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}
+                    >
+                        <h1 style={{ flex: 1 }}>{t("tonieboxes.title")}</h1>
+                        <OwnerFilterSelect filter={ownerFilter} />
+                    </div>
 
                     {newBoxesAllowed.value && (
                         <Alert
@@ -50,7 +60,9 @@ export const TonieboxesPage = () => {
                         />
                     )}
 
-                    <TonieboxesList tonieboxCards={tonieboxes} />
+                    <TonieboxesList
+                        tonieboxCards={tonieboxes.filter((box) => ownerFilter.keep(box.ID))}
+                    />
 
                     {cfwEnabled && <CfwControls />}
                 </StyledContent>

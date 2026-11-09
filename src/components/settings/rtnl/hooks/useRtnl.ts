@@ -87,7 +87,8 @@ export const useRtnl = () => {
         eventSource.addEventListener("pressed", (event: MessageEvent) => {
             try {
                 const data = JSON.parse(event.data);
-                appendLog("Pressed: " + data.data);
+                // users who are no admin get events without content
+                if (data.data !== null) appendLog("Pressed: " + data.data);
             } catch (err) {
                 console.error("Error parsing 'pressed' event:", err);
             }

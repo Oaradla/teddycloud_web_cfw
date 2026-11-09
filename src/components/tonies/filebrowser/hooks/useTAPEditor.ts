@@ -5,6 +5,7 @@ import { defaultAPIConfig } from "../../../../config/defaultApiConfig";
 import { useTeddyCloud } from "../../../../provider/TeddyCloudProvider";
 import { NotificationTypeEnum } from "../../../../types/teddyCloudNotificationTypes";
 import { buildTap } from "../../../../utils/playlist/tapApi";
+import { confirmReplace } from "../../../../utils/teddycloud/confirmReplace";
 
 const api = new TeddyCloudApi(defaultAPIConfig());
 
@@ -71,6 +72,15 @@ export const useTapEditor = ({ currentPath, setRebuildList }: UseTapEditorArgs) 
                 const dir = editedFile
                     ? editedFile.slice(0, editedFile.lastIndexOf("/")) || "/"
                     : normalizedCurrentPath;
+
+                if (
+                    !editedFile &&
+                    !(await confirmReplace(t, `path=${encodeURIComponent(dir)}&special=library`, [
+                        fileName,
+                    ]))
+                ) {
+                    return;
+                }
 
                 const tap = {
                     type: "tap",

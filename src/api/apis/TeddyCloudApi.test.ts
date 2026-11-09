@@ -121,3 +121,16 @@ describe("TeddyCloudApi.apiGetTeddyCloudApiRaw", () => {
         expect(fetchApi.mock.calls[0][0]).toBe("/api/settings/getIndex?groups=true&overlay=box-1");
     });
 });
+
+describe("TeddyCloudApi.apiPostTeddyCloudSetting", () => {
+    it("rejects with the reason the server gives for a refused value", async () => {
+        const fetchApi = vi
+            .fn()
+            .mockResolvedValue(new Response("value out of range", { status: 400 }));
+        const api = new TeddyCloudApi(new Configuration({ basePath: "", fetchApi }));
+
+        await expect(api.apiPostTeddyCloudSetting("toniebox.led", 9)).rejects.toThrow(
+            "value out of range",
+        );
+    });
+});

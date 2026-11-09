@@ -6,7 +6,9 @@ import { Alert, Avatar, Collapse, Flex, Tag, Typography } from "antd";
 import { TeddyCloudApi } from "../../../api";
 import { defaultAPIConfig } from "../../../config/defaultApiConfig";
 import { fetchAclOwned, type AclOwned, type AclOwnedItem } from "../../../utils/auth/aclApi";
+import { listToNodes } from "../../../utils/auth/rightsTree";
 import { withBase } from "../../../utils/basePath";
+import { rightTitle } from "./RightsTreeEditor";
 
 const api = new TeddyCloudApi(defaultAPIConfig());
 
@@ -100,7 +102,9 @@ const OwnedByUser = ({ username, names }: { username: string; names: Names }) =>
                             ) : (
                                 <Text type="secondary">
                                     {t("settings.webAuth.owned.shared", {
-                                        rights: item.granted ?? "",
+                                        rights: listToNodes(item.granted)
+                                            .map((node) => rightTitle(t, node))
+                                            .join(", "),
                                     })}
                                 </Text>
                             )}

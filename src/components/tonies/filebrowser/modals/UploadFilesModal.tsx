@@ -9,6 +9,7 @@ import { defaultAPIConfig } from "../../../../config/defaultApiConfig";
 import { useUploadTimeoutMs } from "../../../../hooks/getsettings/useUploadTimeoutMs";
 import { useTeddyCloud } from "../../../../provider/TeddyCloudProvider";
 import { NotificationTypeEnum } from "../../../../types/teddyCloudNotificationTypes";
+import { confirmReplace } from "../../../../utils/teddycloud/confirmReplace";
 
 const api = new TeddyCloudApi(defaultAPIConfig());
 const { useToken } = theme;
@@ -95,12 +96,23 @@ const UploadFilesModal: React.FC<UploadFilesModalProps> = ({
             return;
         }
 
+        const encodedPath = normalizePathForQuery(path);
+        const encodedSpecial = encodeURIComponent(special);
+        const query = `path=${encodedPath}&special=${encodedSpecial}`;
+        if (
+            !(await confirmReplace(
+                t,
+                query,
+                files.map((file) => file.name),
+            ))
+        ) {
+            return;
+        }
+
         setUploading(true);
         let failure = false;
         const uploadedFileNames: string[] = [];
         const key = "uploading-" + files.length + "-" + new Date();
-        const encodedPath = normalizePathForQuery(path);
-        const encodedSpecial = encodeURIComponent(special);
 
         for (let i = 0; i < files.length; i++) {
             const file = files[i];
@@ -125,10 +137,7 @@ const UploadFilesModal: React.FC<UploadFilesModalProps> = ({
             try {
                 const timeoutMsg = t("fileBrowser.upload.uploadTimeout", { ms: uploadTimeoutMs });
                 const response = await Promise.race<Response>([
-                    api.apiPostTeddyCloudFormDataRaw(
-                        `/api/fileUpload?path=${encodedPath}&special=${encodedSpecial}`,
-                        formData,
-                    ),
+                    api.apiPostTeddyCloudFormDataRaw(`/api/fileUpload?${query}`, formData),
                     new Promise<Response>((_, reject) =>
                         setTimeout(() => reject(new Error(timeoutMsg)), uploadTimeoutMs),
                     ),

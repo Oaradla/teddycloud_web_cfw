@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import JSZip from "jszip";
 
-import { cardConfig, cc3200Releases, macOfCertificate, packageFiles } from "./cc3200Package";
+import {
+    cardConfig,
+    cc3200Releases,
+    hostOnly,
+    macOfCertificate,
+    packageFiles,
+} from "./cc3200Package";
 import { CfwImage } from "../../../../../api/cfwApi";
 
 const text = (data: Uint8Array) => new TextDecoder().decode(data);
@@ -40,5 +46,13 @@ describe("cc3200Package", () => {
             "revvox/boot/ngCfg.json",
         ]);
         expect([...(await packageFiles(pkg, "cc3200/flash/"))["sys/mcuimg.bin"]]).toEqual([1, 2]);
+    });
+});
+
+describe("hostOnly", () => {
+    it("keeps the host of a pasted address", () => {
+        expect(hostOnly(" https://teddycloud.local/web ")).toBe("teddycloud.local");
+        expect(hostOnly("192.168.1.5:443")).toBe("192.168.1.5");
+        expect(hostOnly("tc_box")).toBe("tcbox");
     });
 });

@@ -6,7 +6,13 @@ const api = new TeddyCloudApi(defaultAPIConfig());
 
 export type AclScope = "box" | "tonie" | "folder";
 
-export type AclMineEntry = { owner?: boolean; granted?: string; rights?: string[] };
+export type AclMineEntry = {
+    owner?: boolean;
+    granted?: string;
+    rights?: string[];
+    /** a tonie the user only sees because it was placed on an own box; hiding it ends that */
+    borrowed?: boolean;
+};
 
 export type AclMine = {
     loginActive: boolean;
@@ -194,23 +200,6 @@ export async function fetchAclUsers(): Promise<AclUser[]> {
         "Could not load users",
     );
     return Array.isArray(data.users) ? data.users : [];
-}
-
-/** the settings of a box the current user may change, and whether the box has an own value */
-export async function fetchBoxSettingNames(
-    overlay: string,
-): Promise<{ name: string; overlayed: boolean }[]> {
-    const data = await parse(
-        await api.apiGetTeddyCloudApiRaw(
-            `/api/settings/getIndex?overlay=${encodeURIComponent(overlay)}&nolevel=t`,
-        ),
-        "Could not load the settings",
-    );
-    return Array.isArray(data.options)
-        ? data.options
-              .filter((o: any) => o.writable !== false)
-              .map((o: any) => ({ name: String(o.ID), overlayed: Boolean(o.overlayed) }))
-        : [];
 }
 
 /** saves a group; without id a new one is made, its id comes back */

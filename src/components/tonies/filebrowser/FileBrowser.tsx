@@ -358,18 +358,29 @@ export const FileBrowser: React.FC<{
     };
 
     // split a TAF into a playlist folder
-    const { tafSplitRecord, splitting, openTafSplit, closeTafSplit, confirmTafSplit } = useTafSplit(
-        {
-            path,
-            onSplit: (result, file) => {
-                setRebuildList((prev) => !prev);
-                // the new folder is next to the TAF, which may sit in a subfolder (deep search)
+    const mayWriteFolder = (folder: string) => acl.can("folder", folder, "folder.write");
+    const {
+        tafSplitRecord,
+        splitting,
+        target: splitTarget,
+        keepOriginal,
+        openTafSplit,
+        closeTafSplit,
+        confirmTafSplit,
+    } = useTafSplit({
+        path: decodeURIComponent(path),
+        directoryTree,
+        mayWrite: mayWriteFolder,
+        onSplit: (result, file) => {
+            setRebuildList((prev) => !prev);
+            // a moved original means the new folder is next to the TAF, which may sit in a subfolder (deep search)
+            if (result.original) {
                 handleDirClick(
                     file.slice(0, file.lastIndexOf("/") + 1) + result.folder.split("/").pop(),
                 );
-            },
+            }
         },
-    );
+    });
 
     // encode files
     const showFileEncodeModal = () => {
@@ -481,8 +492,15 @@ export const FileBrowser: React.FC<{
 
     // users may add new pictures to the root of custom_img only
     const isCustomImg = special === "custom_img";
+    // in the library: only folders the user may write
+    const writable =
+        special !== "library" || acl.can("folder", decodeURIComponent(path), "folder.write");
+    // a TAF is split into any folder the user may write
+    const anyFolderWritable =
+        acl.admin || Object.values(acl.folders).some((f) => f.rights?.includes("folder.write"));
     const canUploadHere =
-        !isCustomImg || acl.admin || (acl.canCreateModels && !path.replace(/\//g, ""));
+        writable &&
+        (!isCustomImg || acl.admin || (acl.canCreateModels && !path.replace(/\//g, "")));
 
     // columns
 
@@ -504,12 +522,12 @@ export const FileBrowser: React.FC<{
         playAudio,
         handleFileDownload: handleFileDownloadClick,
         migrateContent2Lib,
-        handleEditTapClick: openEditTap,
-        handleSplitTafClick: special === "library" ? openTafSplit : undefined,
+        handleEditTapClick: writable ? openEditTap : undefined,
+        handleSplitTafClick: special === "library" && anyFolderWritable ? openTafSplit : undefined,
         handleEditTafMetaDataClick: openTafMetaEditor,
-        showRenameDialog,
-        showMoveDialog,
-        showDeleteConfirmDialog,
+        showRenameDialog: writable ? showRenameDialog : undefined,
+        showMoveDialog: writable ? showMoveDialog : undefined,
+        showDeleteConfirmDialog: writable ? showDeleteConfirmDialog : undefined,
         canDelete: isCustomImg
             ? (record) =>
                   record.isDir
@@ -518,7 +536,9 @@ export const FileBrowser: React.FC<{
                             `${decodeURIComponent(path)}/${record.name}`.replace(/^\/+/, ""),
                         )
             : undefined,
-        toggleListened,
+        // a guest marks files as listened in its own folder too
+        toggleListened:
+            writable || acl.owns("folder", decodeURIComponent(path)) ? toggleListened : undefined,
         showAssignTonieDialog,
         buildContentUrl: special === "custom_img" ? buildContentUrl : undefined,
         onImagePreviewClick:
@@ -656,6 +676,10 @@ export const FileBrowser: React.FC<{
             <TafSplitModal
                 record={tafSplitRecord}
                 splitting={splitting}
+                directoryTree={directoryTree}
+                mayWrite={mayWriteFolder}
+                hasTarget={splitTarget !== null}
+                keepOriginal={keepOriginal}
                 onConfirm={confirmTafSplit}
                 onCancel={closeTafSplit}
             />
@@ -773,7 +797,7 @@ export const FileBrowser: React.FC<{
                             <div
                                 style={{ display: "flex", flexWrap: "wrap", gap: 8, minHeight: 32 }}
                             >
-                                {selectedRowKeys.length > 0 ? (
+                                {selectedRowKeys.length > 0 && writable ? (
                                     <>
                                         {files.filter(
                                             (item) =>
@@ -862,7 +886,7 @@ export const FileBrowser: React.FC<{
                                         size="small"
                                     />
                                 ) : null}
-                                {!isCustomImg || acl.admin ? (
+                                {(!isCustomImg || acl.admin) && writable ? (
                                     <Button
                                         icon={<FolderAddOutlined />}
                                         size="small"
@@ -928,7 +952,7 @@ export const FileBrowser: React.FC<{
                     </div>
                 </div>
             </div>
-            {isTapList && (
+            {isTapList && writable && (
                 <Paragraph>
                     <div>
                         <Button type="primary" onClick={openCreateTap}>
@@ -1055,7 +1079,7 @@ export const FileBrowser: React.FC<{
                     locale={{ emptyText: noData }}
                 />
             </div>
-            {isTapList && (
+            {isTapList && writable && (
                 <Paragraph>
                     <div>
                         <Button type="primary" style={{ marginTop: 8 }} onClick={openCreateTap}>

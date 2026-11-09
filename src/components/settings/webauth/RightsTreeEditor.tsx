@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type Key } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Button, Flex, Input, Tag, Tree, Typography } from "antd";
 import type { DataNode } from "antd/es/tree";
 import { boxSettingScope } from "../../cfw/cfwSettingsVisibility";
@@ -12,6 +13,33 @@ import {
 } from "../../../utils/auth/rightsTree";
 
 const { Text } = Typography;
+
+/** the name of a node of the rights tree in the current language */
+export const rightTitle = (t: TFunction, node: RightsNode): string => {
+    switch (node.kind) {
+        case "all":
+            return t("settings.webAuth.tree.all");
+        case "scope":
+            return t(`settings.webAuth.tree.scopes.${node.label}`, node.label);
+        case "settings":
+            return t("settings.webAuth.tree.settings");
+        case "group": {
+            /* of "core" a box has only the flex tonie */
+            const group = node.pattern.slice("box.setting:".length, -2);
+            return group === "core"
+                ? t("settings.webAuth.tree.flexTonie")
+                : t(`settings.groups.${group}`, node.label);
+        }
+        case "setting": {
+            const id = node.pattern.slice("box.setting:".length);
+            const name = t(`settings.options.${id.replace(/\./g, "_")}.label`, node.label);
+            const scope = boxSettingScope(id);
+            return scope ? `${name} · ${t(`settings.webAuth.tree.${scope}Boxes`)}` : name;
+        }
+        default:
+            return t(`sharing.rights.${node.pattern}`, node.pattern);
+    }
+};
 
 type Props = {
     tree: RightsNode;
@@ -40,31 +68,7 @@ export const RightsTreeEditor = ({
     const { checked, extra } = useMemo(() => listToChecked(tree, value), [tree, value]);
     const leafKeys = useMemo(() => new Set(leaves(tree).map((l) => l.key)), [tree]);
 
-    const title = (node: RightsNode): string => {
-        switch (node.kind) {
-            case "all":
-                return t("settings.webAuth.tree.all");
-            case "scope":
-                return t(`settings.webAuth.tree.scopes.${node.label}`, node.label);
-            case "settings":
-                return t("settings.webAuth.tree.settings");
-            case "group": {
-                /* of "core" a box has only the flex tonie */
-                const group = node.pattern.slice("box.setting:".length, -2);
-                return group === "core"
-                    ? t("settings.webAuth.tree.flexTonie")
-                    : t(`settings.groups.${group}`, node.label);
-            }
-            case "setting": {
-                const id = node.pattern.slice("box.setting:".length);
-                const name = t(`settings.options.${id.replace(/\./g, "_")}.label`, node.label);
-                const scope = boxSettingScope(id);
-                return scope ? `${name} · ${t(`settings.webAuth.tree.${scope}Boxes`)}` : name;
-            }
-            default:
-                return t(`sharing.rights.${node.pattern}`, node.pattern);
-        }
-    };
+    const title = (node: RightsNode) => rightTitle(t, node);
 
     const needle = filter.trim().toLowerCase();
     const matches = (node: RightsNode): boolean =>

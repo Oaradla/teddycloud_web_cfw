@@ -71,6 +71,8 @@ export const TonieCard: React.FC<{
 }) => {
     const { t } = useTranslation();
     const acl = useAcl();
+    const canEdit = acl.can("tonie", tonieCard.ruid, "tonie.edit");
+    const flagsReadOnly = readOnly || !canEdit;
     const { token } = useToken();
     const {
         addNotification,
@@ -287,6 +289,7 @@ export const TonieCard: React.FC<{
         addNotification,
         handleNoCloudClick,
         handleLiveClick,
+        canEdit,
     });
 
     // ------------------------
@@ -521,7 +524,7 @@ export const TonieCard: React.FC<{
             key="nocloud"
             className={tonieCard.nocloud ? "no-cloud" : "cloud"}
             style={
-                readOnly
+                flagsReadOnly
                     ? {
                           cursor: "default",
                           color: tonieCard.nocloud ? token.colorError : token.colorTextDisabled,
@@ -530,7 +533,7 @@ export const TonieCard: React.FC<{
                           color: tonieCard.nocloud ? token.colorError : token.colorTextDescription,
                       }
             }
-            onClick={readOnly ? undefined : handleNoCloudClick}
+            onClick={flagsReadOnly ? undefined : handleNoCloudClick}
         />
     );
 
@@ -539,14 +542,14 @@ export const TonieCard: React.FC<{
             key="live"
             className={tonieCard.live ? "live" : "not-live"}
             style={
-                readOnly
+                flagsReadOnly
                     ? {
                           cursor: "default",
                           color: tonieCard.live ? token.colorError : token.colorTextDisabled,
                       }
                     : { color: tonieCard.live ? token.colorError : token.colorTextDescription }
             }
-            onClick={readOnly ? undefined : handleLiveClick}
+            onClick={flagsReadOnly ? undefined : handleLiveClick}
         />
     );
 

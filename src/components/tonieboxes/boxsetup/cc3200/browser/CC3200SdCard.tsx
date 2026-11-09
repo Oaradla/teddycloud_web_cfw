@@ -6,7 +6,8 @@ import { DownloadOutlined } from "@ant-design/icons";
 import { cfwApi, CfwImage } from "../../../../../api/cfwApi";
 import { TeddyCloudApi } from "../../../../../api/apis/TeddyCloudApi";
 import { defaultAPIConfig } from "../../../../../config/defaultApiConfig";
-import { cardConfig, cc3200Releases, packageFiles, saveZip } from "./cc3200Package";
+import { isValidAltPort } from "../hooks/altPortPatch";
+import { cardConfig, cc3200Releases, hostOnly, packageFiles, saveZip } from "./cc3200Package";
 import { StatusLine, StepResult } from "./StatusLine";
 
 const { Paragraph } = Typography;
@@ -56,7 +57,7 @@ export function CC3200SdCard({
             .then((r) => {
                 const seen = r.host.replace(/:\d+$/, "");
                 setSeenHost(seen);
-                if (seen) setHost(seen);
+                if (seen) setHost(hostOnly(seen));
             })
             .catch(() => {});
         api.apiGetTeddyCloudSettingRaw("core.server.https_api_port")
@@ -64,6 +65,8 @@ export function CC3200SdCard({
             .then((p) => p.trim() && setPort(p.trim()))
             .catch(() => {});
     }, []);
+
+    const portInvalid = port !== "" && !isValidAltPort(Number(port));
 
     const download = async () => {
         if (!release) return;
@@ -102,7 +105,7 @@ export function CC3200SdCard({
                             loading={!releases}
                             options={(releases ?? []).map((r) => ({
                                 value: r.build,
-                                label: `${r.version || r.build} (${r.channel})`,
+                                label: `${r.version || r.build} (${t(`cfw.channel.${r.channel}`, r.channel)})`,
                             }))}
                         />
                     </Form.Item>
@@ -115,9 +118,13 @@ export function CC3200SdCard({
                             : t("tonieboxes.cc3200BoxFlashing.browser.hostHint")
                     }
                 >
-                    <Input value={host} onChange={(e) => setHost(e.target.value)} />
+                    <Input value={host} onChange={(e) => setHost(hostOnly(e.target.value))} />
                 </Form.Item>
-                <Form.Item label={t("tonieboxes.cc3200BoxFlashing.browser.port")}>
+                <Form.Item
+                    label={t("tonieboxes.cc3200BoxFlashing.browser.port")}
+                    validateStatus={portInvalid ? "error" : undefined}
+                    help={portInvalid ? t("tonieboxes.cc3200BoxFlashing.portInvalid") : undefined}
+                >
                     <Input
                         value={port}
                         inputMode="numeric"
@@ -130,7 +137,7 @@ export function CC3200SdCard({
                 type="primary"
                 icon={<DownloadOutlined />}
                 loading={busy}
-                disabled={!host.trim() || !release}
+                disabled={!host || portInvalid || !release}
                 onClick={download}
             >
                 {t("tonieboxes.cc3200BoxFlashing.browser.cardDownload")}

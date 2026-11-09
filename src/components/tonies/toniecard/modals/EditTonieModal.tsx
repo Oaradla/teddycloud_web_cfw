@@ -134,6 +134,8 @@ export const EditTonieModal: React.FC<EditTonieModalProps> = ({
     const { token } = useToken();
     const { addNotification } = useTeddyCloud();
     const acl = useAcl();
+    const canAssign = !ruid || acl.can("tonie", ruid, "tonie.assign");
+    const canEdit = !ruid || acl.can("tonie", ruid, "tonie.edit");
     const cfwRef = useRef<CfwTagSettingsHandle>(null);
     const showCfw = useCfwTagSettingsVisible(open && Boolean(ruid));
     const [cfwDirty, setCfwDirty] = useState(false);
@@ -308,11 +310,13 @@ export const EditTonieModal: React.FC<EditTonieModalProps> = ({
                     title={t("cfw.event.noSource")}
                 />
             ) : (
-                <Divider orientation="horizontal" titlePlacement="left">
-                    {t("tonies.editModal.source")}
-                </Divider>
+                canAssign && (
+                    <Divider orientation="horizontal" titlePlacement="left">
+                        {t("tonies.editModal.source")}
+                    </Divider>
+                )
             )}
-            <div hidden={isEventTag}>
+            <div hidden={isEventTag || !canAssign}>
                 <Form.Item
                     validateStatus={inputValidationSource.validateStatus}
                     help={inputValidationSource.help}
@@ -388,11 +392,13 @@ export const EditTonieModal: React.FC<EditTonieModalProps> = ({
                             />,
                         ]}
                     />
-                    <RadioStreamSearch
-                        placeholder={t("tonies.editModal.placeholderSearchForARadioStream")}
-                        onChange={onSearchRadioChange}
-                        key={keyRadioStreamSearch}
-                    />
+                    {acl.admin && (
+                        <RadioStreamSearch
+                            placeholder={t("tonies.editModal.placeholderSearchForARadioStream")}
+                            onChange={onSearchRadioChange}
+                            key={keyRadioStreamSearch}
+                        />
+                    )}
                     {showSetAudioFromModelAction && (
                         <Form.Item style={{ marginTop: 8, marginBottom: 0 }}>
                             <Button
@@ -419,7 +425,7 @@ export const EditTonieModal: React.FC<EditTonieModalProps> = ({
                 {t("tonies.editModal.model")}
             </Divider>
             <div>
-                {modelReadOnly ? (
+                {modelReadOnly || !canEdit ? (
                     <Form.Item>
                         <Input
                             value={modelDisplayText || selectedModel || originalModel}
@@ -440,7 +446,9 @@ export const EditTonieModal: React.FC<EditTonieModalProps> = ({
                             type="secondary"
                             style={{ fontSize: 12, display: "block", marginTop: 4 }}
                         >
-                            {t("tonies.editModal.modelReadOnlyHint")}
+                            {canEdit
+                                ? t("tonies.editModal.modelReadOnlyHint")
+                                : t("tonies.editModal.modelNoEditRightHint")}
                         </Text>
                     </Form.Item>
                 ) : (
@@ -555,7 +563,7 @@ export const EditTonieModal: React.FC<EditTonieModalProps> = ({
                         ruid={ruid}
                         onDirtyChange={setCfwDirty}
                         onKindChange={setCfwKind}
-                        readOnly={!acl.can("tonie", ruid, "tonie.edit")}
+                        readOnly={!canEdit}
                     />
                 </>
             )}

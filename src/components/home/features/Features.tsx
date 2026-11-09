@@ -2,13 +2,20 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 import { gitHubTCCommitTreeBaseUrl, gitHubTCReleasesUrl } from "../../../constants/urls";
-import { useTeddyCloudVersion } from "../../../hooks/useTeddyCloudVersion";
+import { releaseCandidateTag, useTeddyCloudVersion } from "../../../hooks/useTeddyCloudVersion";
 import { FeatureItems, renderFeatureList } from "./render/renderFeatureList";
 import { ExportOutlined } from "@ant-design/icons";
 
 export const Features = () => {
     const { t } = useTranslation();
-    const { version, versionShort, isDevelopVersion, commitGitSha } = useTeddyCloudVersion();
+    const {
+        version,
+        versionShort,
+        isDevelopVersion,
+        commitGitSha,
+        isReleaseCandidateVersion,
+        latestReleaseCandidateTag,
+    } = useTeddyCloudVersion();
 
     const features = t("home.features.features", {
         returnObjects: true,
@@ -28,9 +35,11 @@ export const Features = () => {
                 {t("home.build")}:{" "}
                 <Link
                     to={
-                        isDevelopVersion
-                            ? gitHubTCCommitTreeBaseUrl + commitGitSha
-                            : gitHubTCReleasesUrl + "tag/tc_" + versionShort
+                        isReleaseCandidateVersion
+                            ? gitHubTCCommitTreeBaseUrl + releaseCandidateTag(versionShort)
+                            : isDevelopVersion
+                              ? gitHubTCCommitTreeBaseUrl + commitGitSha
+                              : gitHubTCReleasesUrl + "tag/tc_" + versionShort
                     }
                     target="_blank"
                     rel="noopener noreferrer"
