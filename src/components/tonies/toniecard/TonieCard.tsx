@@ -3,7 +3,7 @@ import { ShareButton } from "../../common/sharing/ShareButton";
 import { canShare } from "../../common/sharing/canShare";
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Card, Checkbox, Tooltip, Typography, theme } from "antd";
+import { Card, Checkbox, Tag, Tooltip, Typography, theme } from "antd";
 import {
     CloudSyncOutlined,
     DownloadOutlined,
@@ -56,6 +56,8 @@ export const TonieCard: React.FC<{
     selectionMode?: boolean;
     selected?: boolean;
     onToggleSelect: (ruid: string) => void;
+    /** global resume waits for a user to choose a position */
+    resumeConflict?: boolean;
 }> = ({
     tonieCard,
     lastRUIDs,
@@ -68,6 +70,7 @@ export const TonieCard: React.FC<{
     selectionMode = false,
     selected = false,
     onToggleSelect,
+    resumeConflict = false,
 }) => {
     const { t } = useTranslation();
     const acl = useAcl();
@@ -609,6 +612,17 @@ export const TonieCard: React.FC<{
                                   : t("tonies.unsetTonie")}
                         </div>
                         <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                            {resumeConflict ? (
+                                <Tooltip
+                                    placement="top"
+                                    zIndex={2}
+                                    title={t("cfw.resume.conflict")}
+                                >
+                                    <Tag color="warning" style={{ marginInlineEnd: 0 }}>
+                                        {t("cfw.resume.conflictBadge")}
+                                    </Tag>
+                                </Tooltip>
+                            ) : null}
                             {languageCode && languageCode !== defaultLanguageCode ? (
                                 <Tooltip
                                     placement="top"

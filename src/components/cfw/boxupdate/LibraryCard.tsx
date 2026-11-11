@@ -49,6 +49,8 @@ interface LibraryCardProps {
     defaultPage?: CfwPage;
     loading: boolean;
     onChanged: () => Promise<void>;
+    /** a user without the admin right sees the images only */
+    readOnly?: boolean;
 }
 
 const imageKey = (image: CfwImage) => `${platformOf(image)}-${image.build}`;
@@ -61,6 +63,7 @@ export const LibraryCard: React.FC<LibraryCardProps> = ({
     defaultPage,
     loading,
     onChanged,
+    readOnly = false,
 }) => {
     const { t } = useTranslation();
     const notify = useNotify();
@@ -190,6 +193,10 @@ export const LibraryCard: React.FC<LibraryCardProps> = ({
             render: (_, image) =>
                 image.original ? (
                     <Text type="secondary">{t("cfw.update.originalChannel")}</Text>
+                ) : readOnly ? (
+                    <Tag color={CHANNEL_COLOR[image.channel]}>
+                        {t(`cfw.channel.${image.channel}`)}
+                    </Tag>
                 ) : (
                     <Select
                         style={{ width: 120 }}
@@ -220,9 +227,14 @@ export const LibraryCard: React.FC<LibraryCardProps> = ({
             render: (_, image) => (
                 <Paragraph
                     style={{ margin: 0, minWidth: 160 }}
-                    editable={{
-                        onChange: (notes) => notes !== image.notes && edit(image, { notes }),
-                    }}
+                    editable={
+                        readOnly
+                            ? false
+                            : {
+                                  onChange: (notes) =>
+                                      notes !== image.notes && edit(image, { notes }),
+                              }
+                    }
                 >
                     {image.notes}
                 </Paragraph>
@@ -277,6 +289,22 @@ export const LibraryCard: React.FC<LibraryCardProps> = ({
             ),
         },
     ];
+
+    if (readOnly)
+        return (
+            <Card title={t("cfw.update.library")} style={{ marginBottom: 16 }}>
+                <Table
+                    rowKey={imageKey}
+                    size="small"
+                    loading={loading}
+                    columns={columns.filter((column) => column.key !== "actions")}
+                    dataSource={images}
+                    pagination={false}
+                    scroll={{ x: true }}
+                    locale={{ emptyText: t("cfw.update.noImages") }}
+                />
+            </Card>
+        );
 
     return (
         <Card title={t("cfw.update.library")} style={{ marginBottom: 16 }}>

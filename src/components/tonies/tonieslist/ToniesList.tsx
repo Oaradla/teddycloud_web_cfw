@@ -26,6 +26,7 @@ import ToniesPagination from "./pagination/ToniesPagination";
 import { showHideTonieConfirm } from "./modals/ToniesHideConfirmModal";
 import { EllipsisOutlined } from "@ant-design/icons";
 import { userStorage } from "../../../utils/storage/userStorage";
+import { cfwApi } from "../../../api/cfwApi";
 
 const api = new TeddyCloudApi(defaultAPIConfig());
 const STORAGE_KEY = "toniesListState";
@@ -75,6 +76,26 @@ export const ToniesList: React.FC<{
     const [showSourceInfo, setShowSourceInfo] = useState<boolean>(false);
     const [selectedTonies, setSelectedTonies] = useState<string[]>([]);
     const [selectionMode, setSelectionMode] = useState<boolean>(false);
+    const [resumeConflicts, setResumeConflicts] = useState<Set<string>>(new Set());
+
+    useEffect(() => {
+        // a refused request (CFW support off) is not repeated
+        const load = () =>
+            cfwApi
+                .resume()
+                .then((all) =>
+                    setResumeConflicts(
+                        new Set(all.filter((r) => r.conflict).map((r) => r.ruid.toLowerCase())),
+                    ),
+                )
+                .catch(() => {
+                    setResumeConflicts(new Set());
+                    window.clearInterval(timer);
+                });
+        const timer = window.setInterval(load, 60_000);
+        load();
+        return () => window.clearInterval(timer);
+    }, []);
     const [collapsed, setCollapsed] = useState(true);
 
     const [filterName, setFilterName] = useState("");
@@ -730,6 +751,7 @@ export const ToniesList: React.FC<{
                                     selectionMode={selectionMode}
                                     selected={selectedTonies.includes(tonie.ruid)}
                                     onToggleSelect={toggleSelectTonie}
+                                    resumeConflict={resumeConflicts.has(tonie.ruid.toLowerCase())}
                                 />
                             </div>
                         ))}

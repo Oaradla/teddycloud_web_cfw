@@ -7,6 +7,7 @@ import LoadingSpinner from "../common/elements/LoadingSpinner";
 import { CfwEventForm } from "./CfwEventForm";
 import { cfwMessage } from "./cfwMessages";
 import { CfwProfileForm } from "./CfwProfileForm";
+import { CfwResumeInfo } from "./CfwResumeInfo";
 
 const { Text } = Typography;
 
@@ -33,6 +34,7 @@ const EMPTY_PROFILE: CfwProfile = {
     slapLock: null,
     tiltLock: null,
     volumeLock: null,
+    globalResume: null,
 };
 
 const EMPTY_EVENT: CfwEvent = { tones: true, actions: [{ action: 1, mode: 0, value: 0 }] };
@@ -134,6 +136,18 @@ export const CfwTagSettings = forwardRef<CfwTagSettingsHandle, CfwTagSettingsPro
                         />
                         <CfwEventForm event={event} onChange={setEvent} />
                     </>
+                )}
+                {loaded.resume && (
+                    <CfwResumeInfo
+                        ruid={ruid}
+                        resume={loaded.resume}
+                        onChosen={() =>
+                            cfwApi
+                                .tag(ruid)
+                                .then((fresh) => setLoaded({ ...loaded, resume: fresh.resume }))
+                                .catch(() => undefined)
+                        }
+                    />
                 )}
                 {loaded.kind !== "none" && loaded.timestamp ? (
                     <Text type="secondary" style={{ fontSize: 12 }}>

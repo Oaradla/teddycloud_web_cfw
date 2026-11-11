@@ -149,15 +149,16 @@ const BoxUpdateCards: React.FC = () => {
                 loading={loading || boxesLoading}
                 onChanged={reload}
             />
+            <LibraryCard
+                images={firmware?.images ?? []}
+                boxes={boxesLoading || boxesError ? undefined : boxes}
+                defaultPage={firmware?.defaultPage}
+                loading={loading}
+                onChanged={reload}
+                readOnly={!acl.admin}
+            />
             {acl.admin ? (
                 <>
-                    <LibraryCard
-                        images={firmware?.images ?? []}
-                        boxes={boxesLoading || boxesError ? undefined : boxes}
-                        defaultPage={firmware?.defaultPage}
-                        loading={loading}
-                        onChanged={reload}
-                    />
                     <GithubCard
                         github={firmware?.github}
                         interval={githubInterval}

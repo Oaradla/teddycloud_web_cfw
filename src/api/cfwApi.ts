@@ -22,6 +22,7 @@ export const CFW_CAP = {
     remote: 1 << 10,
     battery: 1 << 11,
     temporary: 1 << 13,
+    globalResume: 1 << 14,
 };
 
 /** the last battery report of the box */
@@ -96,16 +97,17 @@ export const cfwRemoteAvailable = (box?: CfwBox) =>
         box.capabilities & CFW_CAP.remote,
     );
 
+/** boxes with the custom firmware whose build lacks the capability */
+export const cfwWithoutCapability = (boxes: CfwBox[], capability: number) =>
+    boxes.filter(
+        (box) =>
+            box.isCfw && box.helloValid && cfwEnabledFor(box) && !(box.capabilities & capability),
+    );
+
 /** boxes with the custom firmware whose build cannot hold box settings only until switch-off:
  * they do not take such an event tag and keep its earlier version */
 export const cfwWithoutTemporary = (boxes: CfwBox[]) =>
-    boxes.filter(
-        (box) =>
-            box.isCfw &&
-            box.helloValid &&
-            cfwEnabledFor(box) &&
-            !(box.capabilities & CFW_CAP.temporary),
-    );
+    cfwWithoutCapability(boxes, CFW_CAP.temporary);
 
 /** null: not set (the box behaves as without the setting) */
 export interface CfwProfile {
@@ -118,6 +120,31 @@ export interface CfwProfile {
     slapLock: boolean | null;
     tiltLock: boolean | null;
     volumeLock: boolean | null;
+    /** continues on every box where it stopped on another one; implies resume */
+    globalResume: boolean | null;
+}
+
+/** a position of a figure as a box reported it (global resume) */
+export interface CfwPosition {
+    box: string;
+    /** the server's revision the position started from */
+    base: number;
+    /** seconds heard since base */
+    listened: number;
+    audioId: number;
+    /** the next block (4096 bytes) to read */
+    position: number;
+    time: number;
+}
+
+export interface CfwResume {
+    global: boolean;
+    revision: number;
+    last: CfwPosition;
+    current?: CfwPosition;
+    conflict: boolean;
+    branches: CfwPosition[];
+    onBox: string;
 }
 
 export interface CfwAction {
@@ -138,6 +165,8 @@ export interface CfwTag {
     kind: "none" | "profile" | "event";
     origin?: "box" | "server" | "tool" | "unknown";
     timestamp?: number;
+    /** the positions the boxes reported for it */
+    resume?: CfwResume;
     profile?: CfwProfile;
     event?: CfwEvent;
 }
@@ -283,6 +312,9 @@ export const cfwApi = {
     tag: (ruid: string) => getJson<CfwTag>(`/api/cfw/tag?ruid=${enc(ruid)}`),
     setTag: (ruid: string, tag: Omit<CfwTag, "ruid">) =>
         postJson(`/api/cfw/tag?ruid=${enc(ruid)}`, tag),
+    resume: () => getJson<(CfwResume & { ruid: string })[]>("/api/cfw/resume"),
+    chooseResume: (ruid: string, branch: number) =>
+        postJson(`/api/cfw/resume/choose?ruid=${enc(ruid)}&branch=${branch}`, {}),
     remote: (boxId: string, command: string, extra: Record<string, unknown> = {}) =>
         postJson(`/api/cfw/remote?overlay=${enc(boxId)}`, { command, ...extra }),
     status: (boxId: string) => getJson<CfwStatus>(`/api/cfw/status?overlay=${enc(boxId)}`),

@@ -65,6 +65,8 @@ export const CFW_MESSAGE_KEYS: Record<string, string> = {
     "the package could not be kept for the installation in the browser": "packageNotKept",
     "the patched image is no app image": "patchedNoApp",
     "the port cannot be patched in this version of the original firmware": "portNotPatchable",
+    "no such conflict": "noSuchConflict",
+    "ruid or branch missing": "ruidOrBranchMissing",
 };
 
 /** a message of the server in the UI language; texts with values in them stay as sent */

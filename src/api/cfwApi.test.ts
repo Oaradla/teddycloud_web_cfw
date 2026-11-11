@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { CFW_CAP, CfwBox, cfwWithoutTemporary, formatBuild } from "./cfwApi";
+import { CFW_CAP, CfwBox, cfwWithoutCapability, cfwWithoutTemporary, formatBuild } from "./cfwApi";
 
 const savedTz = process.env.TZ;
 
@@ -45,5 +45,16 @@ describe("cfwWithoutTemporary", () => {
             box("ofw", false, 0),
         ];
         expect(cfwWithoutTemporary(boxes).map((b) => b.id)).toEqual(["old"]);
+    });
+});
+
+describe("cfwWithoutCapability", () => {
+    it("lists the custom firmware boxes without global resume", () => {
+        const boxes = [
+            { id: "old", isCfw: true, helloValid: true, capabilities: CFW_CAP.resume },
+            { id: "new", isCfw: true, helloValid: true, capabilities: CFW_CAP.globalResume },
+            { id: "off", isCfw: true, helloValid: false, capabilities: 0 },
+        ].map((b) => ({ ...b, settings: { enabled: true } }) as CfwBox);
+        expect(cfwWithoutCapability(boxes, CFW_CAP.globalResume).map((b) => b.id)).toEqual(["old"]);
     });
 });
