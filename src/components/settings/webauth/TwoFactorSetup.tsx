@@ -3,11 +3,11 @@ import { useTranslation } from "react-i18next";
 import { Alert, Button, Flex, Form, Input, QRCode, Typography } from "antd";
 
 import {
-    AuthApiError,
     enableTwoFactor,
     startTwoFactorSetup,
     type TwoFactorSetup as SetupData,
 } from "../../../utils/auth/webAuthApi";
+import { authErrorText } from "./authFormat";
 import { RecoveryCodes } from "./RecoveryCodes";
 
 const { Paragraph, Text } = Typography;
@@ -27,22 +27,13 @@ export const TwoFactorSetup = ({ username, onFinished, onCancel }: Props) => {
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
 
-    const errorText = (err: unknown) => {
-        if (err instanceof AuthApiError) {
-            const key = `settings.webAuth.errors.${err.code}`;
-            const translated = t(key);
-            return translated !== key ? translated : err.message;
-        }
-        return err instanceof Error ? err.message : t("settings.webAuth.saveFailed");
-    };
-
     const start = async (values: { password: string }) => {
         setError(null);
         setBusy(true);
         try {
             setSetup(await startTwoFactorSetup(values.password));
         } catch (err) {
-            setError(errorText(err));
+            setError(authErrorText(t, err));
         } finally {
             setBusy(false);
         }
@@ -54,7 +45,7 @@ export const TwoFactorSetup = ({ username, onFinished, onCancel }: Props) => {
         try {
             setCodes(await enableTwoFactor(values.code.replace(/\s/g, "")));
         } catch (err) {
-            setError(errorText(err));
+            setError(authErrorText(t, err));
         } finally {
             setBusy(false);
         }

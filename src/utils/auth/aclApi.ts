@@ -1,4 +1,5 @@
 import { TeddyCloudApi } from "../../api";
+import { ResponseError } from "../../api/runtime";
 import { defaultAPIConfig } from "../../config/defaultApiConfig";
 import { AuthApiError } from "./webAuthApi";
 
@@ -71,6 +72,13 @@ async function parse(response: Response, fallback: string): Promise<any> {
     return data;
 }
 
+/** the answer, an error answer too (the generated client throws on those) */
+const get = (path: string) =>
+    api.apiGetTeddyCloudApiRaw(path).catch((error) => {
+        if (error instanceof ResponseError) return error.response;
+        throw error;
+    });
+
 export const ADMIN_MINE: AclMine = {
     loginActive: false,
     username: "",
@@ -85,17 +93,14 @@ export const ADMIN_MINE: AclMine = {
 };
 
 export async function fetchAclMine(): Promise<AclMine> {
-    const data = await parse(
-        await api.apiGetTeddyCloudApiRaw("/api/acl/mine"),
-        "Could not load permissions",
-    );
+    const data = await parse(await get("/api/acl/mine"), "Could not load permissions");
     return { ...ADMIN_MINE, ...data };
 }
 
 /** custom tonies and pictures a non-admin may change besides the own ones */
 export async function fetchModelsChangeable(): Promise<{ models: string[]; images: string[] }> {
     const data = await parse(
-        await api.apiGetTeddyCloudApiRaw("/api/toniesCustomJsonChangeable"),
+        await get("/api/toniesCustomJsonChangeable"),
         "Could not load the custom tonies",
     );
     return {
@@ -113,21 +118,18 @@ export type AclOwned = Record<
 /** what belongs to a user or is shared with them (admins only) */
 export async function fetchAclOwned(user: string): Promise<AclOwned> {
     return parse(
-        await api.apiGetTeddyCloudApiRaw(`/api/acl/owned?user=${encodeURIComponent(user)}`),
+        await get(`/api/acl/owned?user=${encodeURIComponent(user)}`),
         "Could not load what belongs to the user",
     );
 }
 
 export async function fetchAclCatalog(): Promise<AclCatalog> {
-    return parse(await api.apiGetTeddyCloudApiRaw("/api/acl/catalog"), "Could not load the rights");
+    return parse(await get("/api/acl/catalog"), "Could not load the rights");
 }
 
 export async function fetchAclEntry(type: AclScope, id: string): Promise<AclEntry> {
     const query = `type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`;
-    return parse(
-        await api.apiGetTeddyCloudApiRaw(`/api/acl/get?${query}`),
-        "Could not load the shares",
-    );
+    return parse(await get(`/api/acl/get?${query}`), "Could not load the shares");
 }
 
 export async function saveAclEntry(
@@ -195,10 +197,7 @@ export function mineAllows(mine: AclMine, scope: AclScope, id: string, right: st
 export type AclUser = { username: string; level: string; group?: string };
 
 export async function fetchAclUsers(): Promise<AclUser[]> {
-    const data = await parse(
-        await api.apiGetTeddyCloudApiRaw("/api/acl/users"),
-        "Could not load users",
-    );
+    const data = await parse(await get("/api/acl/users"), "Could not load users");
     return Array.isArray(data.users) ? data.users : [];
 }
 

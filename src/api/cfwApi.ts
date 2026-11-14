@@ -365,6 +365,13 @@ export const cfwApi = {
         );
         return new Uint8Array(await response.arrayBuffer());
     },
+    /** an ESP32 image as it goes into an app slot, its server block holding host (host[:port]) */
+    esp32Image: async (build: number, host: string): Promise<Uint8Array> => {
+        const response = await api.apiGetTeddyCloudApiRaw(
+            `/api/cfw/firmware/esp32Image?build=${build}&host=${enc(host)}`,
+        );
+        return new Uint8Array(await response.arrayBuffer());
+    },
     /** this teddyCloud's CA as the replacement the box checks the server with (c2.der) */
     caReplacement: async (): Promise<Uint8Array> => {
         const response = await api.apiGetTeddyCloudApiRaw("/api/getFile/c2.der");

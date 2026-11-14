@@ -120,7 +120,7 @@ describe("defaultAPIConfig", () => {
 
         try {
             const config = defaultAPIConfig();
-            const response = await config.fetchApi!("/content/download/F87FFC14/45000304E0", {
+            const response = await config.fetchApi!("/content/download/12345678/50000000", {
                 method: "GET",
             });
 

@@ -80,7 +80,19 @@ export const InstallGuide: React.FC<{ open: boolean }> = ({ open }) => {
                                         key: "esp32",
                                         label: <strong>{t("cfw.update.guide.esp32.title")}</strong>,
                                         children: (
-                                            <Steps prefix="cfw.update.guide.esp32" count={6} />
+                                            <>
+                                                <Steps prefix="cfw.update.guide.esp32" count={6} />
+                                                <Paragraph>
+                                                    <Trans
+                                                        i18nKey="cfw.update.guide.esp32.flasher"
+                                                        components={{
+                                                            flasher: (
+                                                                <Link to="/tonieboxes/boxsetup/esp32/flashing" />
+                                                            ),
+                                                        }}
+                                                    />
+                                                </Paragraph>
+                                            </>
                                         ),
                                     },
                                 ]}

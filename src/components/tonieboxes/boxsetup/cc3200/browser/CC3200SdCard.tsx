@@ -4,14 +4,11 @@ import { Alert, Button, Form, Input, Select, Typography } from "antd";
 import { DownloadOutlined } from "@ant-design/icons";
 
 import { cfwApi, CfwImage } from "../../../../../api/cfwApi";
-import { TeddyCloudApi } from "../../../../../api/apis/TeddyCloudApi";
-import { defaultAPIConfig } from "../../../../../config/defaultApiConfig";
 import { isValidAltPort } from "../hooks/altPortPatch";
 import { cardConfig, cc3200Releases, hostOnly, packageFiles, saveZip } from "./cc3200Package";
 import { StatusLine, StepResult } from "./StatusLine";
 
 const { Paragraph } = Typography;
-const api = new TeddyCloudApi(defaultAPIConfig());
 
 /** the CC3200 release packages of the library; loading until the list is there */
 export function useCc3200Releases() {
@@ -58,11 +55,8 @@ export function CC3200SdCard({
                 const seen = r.host.replace(/:\d+$/, "");
                 setSeenHost(seen);
                 if (seen) setHost(hostOnly(seen));
+                if (r.apiPort) setPort(String(r.apiPort));
             })
-            .catch(() => {});
-        api.apiGetTeddyCloudSettingRaw("core.server.https_api_port")
-            .then((r) => r.text())
-            .then((p) => p.trim() && setPort(p.trim()))
             .catch(() => {});
     }, []);
 

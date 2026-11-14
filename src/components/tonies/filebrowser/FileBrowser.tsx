@@ -14,7 +14,6 @@ import { Button, Flex, Input, Modal, Table, theme, Tooltip, Typography } from "a
 import { Key } from "antd/es/table/interface";
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
 
 import TeddyAudioPlaylistEditor from "./modals/TeddyAudioPlaylistEditorModal";
 import TonieInformationModal from "../common/modals/TonieInformationModal";
@@ -93,8 +92,6 @@ export const FileBrowser: React.FC<{
     const { token } = useToken();
     const acl = useAcl();
 
-    const navigate = useNavigate();
-
     const [currentFile, setCurrentFile] = useState<string>("");
     const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
 
@@ -163,6 +160,7 @@ export const FileBrowser: React.FC<{
         inputFilterRef,
         generateBreadcrumbs,
         buildDirPath,
+        navigateToPath,
         buildContentUrl,
         defaultSorter,
         dirNameSorter,
@@ -478,7 +476,7 @@ export const FileBrowser: React.FC<{
     const handleDirClick = (dirPath: string) => {
         const newPath = buildDirPath(dirPath);
         if (trackUrl) {
-            navigate(`?path=${newPath}`);
+            navigateToPath(newPath);
         }
         handleFilterFieldInputBlur();
         setSelectedRowKeys([]);
@@ -881,8 +879,8 @@ export const FileBrowser: React.FC<{
                                 {special === "library" ? (
                                     <ShareButton
                                         type="folder"
-                                        id={path.replace(/^\/+/, "")}
-                                        title={path || "/"}
+                                        id={decodeURIComponent(path).replace(/^\/+/, "")}
+                                        title={decodeURIComponent(path) || "/"}
                                         size="small"
                                     />
                                 ) : null}

@@ -19,6 +19,7 @@ import {
     type AclMine,
     type AclScope,
 } from "../utils/auth/aclApi";
+import { AuthApiError } from "../utils/auth/webAuthApi";
 
 type AclContextValue = AclMine & {
     loaded: boolean;
@@ -51,6 +52,7 @@ export const AclProvider = ({ children }: { children: ReactNode }) => {
 
     const refresh = useCallback(async () => {
         if (!auth.enabled || !auth.loggedIn) {
+            ++latest.current; // an answer for the user before comes too late
             setMine(ADMIN_MINE);
             setLoaded(true);
             return;
@@ -64,7 +66,7 @@ export const AclProvider = ({ children }: { children: ReactNode }) => {
                 nextChangeable = await fetchModelsChangeable().catch(() => NOTHING_CHANGEABLE);
         } catch (e) {
             /* an older server without permissions: everyone is admin; other errors allow nothing */
-            if ((e as { response?: Response }).response?.status === 404) next = ADMIN_MINE;
+            if (e instanceof AuthApiError && e.status === 404) next = ADMIN_MINE;
         }
         if (request !== latest.current) return; // a newer request (another user) answers
         setMine(next);

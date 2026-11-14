@@ -25,6 +25,8 @@ export interface PartsJob {
     playlist: boolean;
     encoder: Encoder;
     bitrate: number;
+    /** playlist: parts of an earlier upload in its folder, removed once the new playlist is built */
+    oldParts?: string[];
 }
 
 export interface PartsResult {
@@ -56,7 +58,10 @@ const safe = (s: string) =>
         .trim() || "Track";
 const join = (dir: string, name: string) => `${dir.replace(/\/+$/, "")}/${name}`;
 const lib = (path: string) => "lib://" + path.replace(/^\/+/, "");
-const audioIdNow = () => Math.floor(Date.now() / 1000) - 0x50000000;
+let lastAudioId = 0;
+/** the highest of count new audio ids (custom range); the others count down from it */
+const newAudioIds = (count: number) =>
+    (lastAudioId = Math.max(Math.floor(Date.now() / 1000) - 0x50000000, lastAudioId + count));
 const query = (params: Record<string, string | number>) =>
     Object.entries(params)
         .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
@@ -74,7 +79,10 @@ export const hasTapBuild = () =>
     (tapBuildProbe ??= api
         .apiPostTeddyCloudRaw("/api/tapBuild?special=library", "")
         .then((r) => r.status !== 404 && r.status !== 405)
-        .catch(() => false));
+        .catch(() => {
+            tapBuildProbe = null;
+            return false;
+        }));
 
 const dirCreate = (path: string) =>
     api.apiPostTeddyCloudRaw("/api/dirCreate?special=library", path).catch(() => undefined);
@@ -123,7 +131,7 @@ const saveTap = async (
 ) => {
     const tap = {
         type: "tap",
-        audio_id: Math.floor(Date.now() / 1000),
+        audio_id: newAudioIds(1),
         filepath: lib(out),
         name,
         files: files.map((f) => ({ filepath: lib(f.path), name: f.title })),
@@ -168,7 +176,7 @@ async function limited<T>(items: T[], limit: number, fn: (item: T, i: number) =>
 /** encodes the files as single TAFs into dir, named partName(i) */
 async function makeParts(job: PartsJob, dir: string, partName: (i: number) => string, step: Step) {
     const total = job.files.length;
-    const baseId = audioIdNow();
+    const baseId = newAudioIds(total);
     if (job.encoder === "browser") {
         const parts = await encodeFilesParallel(job.files, baseId, job.bitrate, (f, done) =>
             step({ kind: "encoding", done, total }, f * 0.8),
@@ -194,6 +202,23 @@ async function makeParts(job: PartsJob, dir: string, partName: (i: number) => st
     }
 }
 
+const playlistPartName = (titles: string[], i: number) => `${pad(i + 1)} - ${safe(titles[i])}.taf`;
+
+/** the TAFs in the playlist folder of the job that the new playlist will not name */
+export async function oldPlaylistParts(job: Pick<PartsJob, "folder" | "name" | "titles">) {
+    const dir = join(job.folder, safe(job.name));
+    const response = await api
+        .apiGetTeddyCloudApiRaw(`/api/fileIndexV2?${query({ path: dir, special: "library" })}`)
+        .catch(() => undefined);
+    if (!response?.ok) return [];
+    const files: { name: string; isDir?: boolean }[] = (await response.json()).files ?? [];
+    const keep = new Set(job.titles.map((_, i) => playlistPartName(job.titles, i)));
+    keep.add(`${safe(job.name)}.tap.taf`);
+    return files
+        .filter((f) => !f.isDir && /\.taf$/i.test(f.name) && !keep.has(f.name))
+        .map((f) => f.name);
+}
+
 export async function uploadInParts(job: PartsJob, step: Step): Promise<PartsResult> {
     const name = safe(job.name);
     const n = job.files.length;
@@ -201,7 +226,7 @@ export async function uploadInParts(job: PartsJob, step: Step): Promise<PartsRes
     if (job.playlist) {
         const dir = join(job.folder, name);
         await dirCreate(dir);
-        const partName = (i: number) => `${pad(i + 1)} - ${safe(job.titles[i])}.taf`;
+        const partName = (i: number) => playlistPartName(job.titles, i);
         await makeParts(job, dir, partName, step);
         const tafName = `${name}.tap.taf`;
         const tap = await saveTap(
@@ -214,6 +239,7 @@ export async function uploadInParts(job: PartsJob, step: Step): Promise<PartsRes
         step({ kind: "joining" }, 0.97);
         const built = await buildTap(tap.path);
         if (!built.built) throw new Error(built.error || "the playlist could not be put together");
+        for (const old of job.oldParts ?? []) await fileDelete(join(dir, old));
         return {
             source: tap.path,
             folder: dir,

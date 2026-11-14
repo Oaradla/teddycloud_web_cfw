@@ -4,6 +4,7 @@ import { CfwBox, CfwImage } from "../../../api/cfwApi";
 import {
     channelKey,
     esp32Installs,
+    imageOfBox,
     imagesForBox,
     oldImages,
     pageOffered,
@@ -37,6 +38,13 @@ describe("platforms", () => {
         const images = [image(1), image(2, "esp32"), image(3, "cc3200")];
         expect(imagesForBox(images, box({ platform: "esp32" })).map((i) => i.build)).toEqual([2]);
         expect(imagesForBox(images, box({})).map((i) => i.build)).toEqual([1, 3]);
+    });
+
+    it("finds a box's image by build on its own platform", () => {
+        const images = [image(5, "esp32"), image(5)];
+        expect(imageOfBox(images, box({}), 5)).toBe(images[1]);
+        expect(imageOfBox(images, box({ platform: "esp32" }), 5)).toBe(images[0]);
+        expect(imageOfBox(images, box({}), 6)).toBeUndefined();
     });
 
     it("offers the original ESP32 firmware only to a box running the custom firmware", () => {

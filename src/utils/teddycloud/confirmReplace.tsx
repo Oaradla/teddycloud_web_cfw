@@ -23,7 +23,19 @@ export async function confirmReplace(
     }
     const found = names.filter((name) => existing.includes(name));
     if (!found.length) return true;
+    return ask(
+        t("fileBrowser.upload.replaceTitle"),
+        t("fileBrowser.upload.replaceText", { names: found.join(", ") }),
+        t,
+    );
+}
 
+/** a yes/no question outside a component; true: yes */
+export function ask(
+    title: string,
+    content: string,
+    t: (key: string, options?: Record<string, unknown>) => string,
+): Promise<boolean> {
     return new Promise((resolve) => {
         const div = document.createElement("div");
         document.body.appendChild(div);
@@ -35,11 +47,11 @@ export async function confirmReplace(
         };
         root.render(
             <ConfirmationDialog
-                title={t("fileBrowser.upload.replaceTitle")}
+                title={title}
                 open={true}
                 okText={t("fileBrowser.upload.replace")}
                 cancelText={t("fileBrowser.upload.cancel")}
-                content={t("fileBrowser.upload.replaceText", { names: found.join(", ") })}
+                content={content}
                 handleOk={() => close(true)}
                 handleCancel={() => close(false)}
             />,

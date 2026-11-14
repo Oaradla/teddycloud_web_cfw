@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button, Modal, Typography } from "antd";
+import { Alert, Button, Modal, Typography } from "antd";
 import { SafetyOutlined } from "@ant-design/icons";
 
 import {
@@ -18,7 +18,8 @@ type Props = {
     /** what the admin took from the user (stored as a deny list) */
     value: string;
     tree: RightsNode | null;
-    onSave: (deny: string) => Promise<void> | void;
+    /** gives the error text when the change was refused */
+    onSave: (deny: string) => Promise<string | null>;
 };
 
 /** What one user may do within the limit of the group, picked as allowed rights. */
@@ -27,9 +28,11 @@ export const UserDenyButton = ({ username, value, tree, onSave }: Props) => {
     const [open, setOpen] = useState(false);
     const [draft, setDraft] = useState(value);
     const [saving, setSaving] = useState(false);
+    const [failure, setFailure] = useState<string | null>(null);
 
     useEffect(() => {
         if (open) setDraft(value);
+        setFailure(null);
     }, [open, value]);
 
     const all = useMemo(() => (tree ? leaves(tree).map((l) => l.key) : []), [tree]);
@@ -81,8 +84,9 @@ export const UserDenyButton = ({ username, value, tree, onSave }: Props) => {
                 onOk={async () => {
                     setSaving(true);
                     try {
-                        await onSave(draft);
-                        setOpen(false);
+                        const failed = await onSave(draft);
+                        setFailure(failed);
+                        if (!failed) setOpen(false);
                     } finally {
                         setSaving(false);
                     }
@@ -92,6 +96,9 @@ export const UserDenyButton = ({ username, value, tree, onSave }: Props) => {
                 <Paragraph type="secondary">
                     {t("settings.webAuth.denyHint", { username })}
                 </Paragraph>
+                {failure ? (
+                    <Alert type="error" showIcon title={failure} style={{ marginBottom: 16 }} />
+                ) : null}
                 {tree ? (
                     <RightsTreeEditor
                         tree={tree}

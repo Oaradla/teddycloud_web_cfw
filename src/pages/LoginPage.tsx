@@ -105,11 +105,18 @@ export const LoginPage = ({ themeSwitch }: { themeSwitch: ReactNode }) => {
                 useRecovery ? values.code.trim() : values.code.replace(/\s/g, ""),
                 useRecovery ? "recovery" : "totp",
             );
+            setPending(null); // used up
         } catch (err) {
             setError(describe(err));
         } finally {
             setSubmitting(false);
         }
+    };
+
+    const backToLogin = () => {
+        setError(null);
+        setPending(null);
+        void logout();
     };
 
     const onPasswordChange = async (values: {
@@ -156,7 +163,7 @@ export const LoginPage = ({ themeSwitch }: { themeSwitch: ReactNode }) => {
                 <TwoFactorSetup
                     username={username}
                     onFinished={() => void refresh().catch(() => undefined)}
-                    onCancel={() => void logout()}
+                    onCancel={backToLogin}
                 />
             </>
         );
@@ -263,7 +270,7 @@ export const LoginPage = ({ themeSwitch }: { themeSwitch: ReactNode }) => {
                     <Button
                         type="link"
                         style={{ paddingInline: 0, minHeight: 44 }}
-                        onClick={() => void logout()}
+                        onClick={backToLogin}
                     >
                         {t("auth.backToLogin")}
                     </Button>

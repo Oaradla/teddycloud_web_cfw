@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ADMIN_MINE, listAllows, mineAllows } from "./aclApi";
+import { ADMIN_MINE, fetchAclEntry, listAllows, mineAllows } from "./aclApi";
 import { restrictMenu } from "./navFilter";
 
 describe("listAllows", () => {
@@ -69,5 +69,22 @@ describe("restrictMenu", () => {
             "webauth",
             "notifications",
         ]);
+    });
+});
+
+describe("fetchAclEntry", () => {
+    afterEach(() => vi.unstubAllGlobals());
+
+    it("throws the server's reason of an error answer", async () => {
+        const body = JSON.stringify({ error: "forbidden", message: "not yours" });
+        vi.stubGlobal(
+            "fetch",
+            vi.fn(async () => new Response(body, { status: 403 })),
+        );
+        await expect(fetchAclEntry("folder", "a")).rejects.toMatchObject({
+            message: "not yours",
+            code: "forbidden",
+            status: 403,
+        });
     });
 });

@@ -95,7 +95,7 @@ const writerOf = (port: SerialPort) => {
 };
 
 const ascii = (s: string) => [...s].map((c) => c.charCodeAt(0));
-const equal = (a: Uint8Array, b: Uint8Array) =>
+export const equal = (a: Uint8Array, b: Uint8Array) =>
     a.length === b.length && a.every((x, i) => x === b[i]);
 
 export type Log = (line: string) => void;
@@ -223,19 +223,28 @@ class GatewayLink implements Link {
     }
 
     static async open(port: SerialPort, log: Log) {
-        await port.setSignals({ dataTerminalReady: false, requestToSend: false });
         const link = new GatewayLink(port, log);
-        // extended mode: length 12, type 0x0A, "UARTGWEX"
-        await link.raw(Uint8Array.from([0x0c, 0x00, 0x0a, 0x00, ...ascii("UARTGWEX")]));
-        await sleep(500);
-        await link.raw(GatewayLink.packet(new Uint8Array(12), 1)); // ask for the configuration
-        await sleep(100);
-        const config = new Uint8Array(12);
-        config.set([BAUD & 0xff, (BAUD >> 8) & 0xff, (BAUD >> 16) & 0xff, (BAUD >>> 24) & 0xff], 0);
-        config[11] = 1; // extended mode
-        await link.raw(GatewayLink.packet(config, 1));
-        await sleep(100);
-        return link;
+        try {
+            await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+            // extended mode: length 12, type 0x0A, "UARTGWEX"
+            await link.raw(Uint8Array.from([0x0c, 0x00, 0x0a, 0x00, ...ascii("UARTGWEX")]));
+            await sleep(500);
+            await link.raw(GatewayLink.packet(new Uint8Array(12), 1)); // ask for the configuration
+            await sleep(100);
+            const config = new Uint8Array(12);
+            config.set(
+                [BAUD & 0xff, (BAUD >> 8) & 0xff, (BAUD >> 16) & 0xff, (BAUD >>> 24) & 0xff],
+                0,
+            );
+            config[11] = 1; // extended mode
+            await link.raw(GatewayLink.packet(config, 1));
+            await sleep(100);
+            return link;
+        } catch (e) {
+            // the port open, the next Connect would fail
+            await link.close();
+            throw e;
+        }
     }
 
     private static packet(payload: Uint8Array, type: number) {
@@ -668,7 +677,7 @@ export class Cc3200 {
         return (await this.fileInfo(name)).exists;
     }
 
-    /** all files of the box (except the service pack), each read twice; the ones that failed are named */
+    /** all files of the box (except the service pack) by their name with a leading slash, each read twice; the ones that failed are named */
     async readAllFiles(progress?: (name: string, i: number, total: number) => void) {
         const all = await this.listFiles();
         const slash = (name: string) => (name.startsWith("/") ? name : "/" + name);
@@ -700,7 +709,7 @@ export class Cc3200 {
         for (const [i, name] of files.entries()) {
             progress?.(name, i, files.length);
             try {
-                out.set(name, await this.readFile(name));
+                out.set(slash(name), await this.readFile(name));
             } catch (e) {
                 const { key, values } =
                     e instanceof Cc3200Error
@@ -713,17 +722,20 @@ export class Cc3200 {
         return { files: out, failed };
     }
 
+    /** erases a file of the box */
+    async deleteFile(name: string) {
+        // asked once more before erasing, as cc3200tool does
+        await this.fileInfo(name);
+        await this.sendPacket([OP.eraseFile, ...be32(0), ...ascii(name), 0]);
+        const status = await this.lastStatus();
+        if (status !== STATUS_OK)
+            throw new Cc3200Error("eraseFailed", { name, status: status.toString(16) });
+    }
+
     /** writes a file (an existing one is erased first) and reads it back to compare */
     async writeFile(name: string, data: Uint8Array) {
         if (!data.length) throw new Cc3200Error("nothingToWrite", { name });
-        if ((await this.fileInfo(name)).exists) {
-            // asked once more before erasing, as cc3200tool does
-            await this.fileInfo(name);
-            await this.sendPacket([OP.eraseFile, ...be32(0), ...ascii(name), 0]);
-            const status = await this.lastStatus();
-            if (status !== STATUS_OK)
-                throw new Cc3200Error("eraseFailed", { name, status: status.toString(16) });
-        }
+        if ((await this.fileInfo(name)).exists) await this.deleteFile(name);
         const index = FLASH_BLOCK_SIZES.findIndex((b) => b * 255 >= data.length);
         if (index < 0) throw new Cc3200Error("tooBig", { name });
         const blocks = Math.ceil(data.length / FLASH_BLOCK_SIZES[index]);
@@ -734,14 +746,20 @@ export class Cc3200 {
         const timeout =
             data.length > 200000 ? Math.max(TIMEOUT, 5000 * (data.length / 200000 + 1)) : TIMEOUT;
         await this.openFile(name, flags, timeout);
-        for (let pos = 0; pos < data.length; pos += SLFS_BLOCK_SIZE) {
-            await this.sendPacket([
-                OP.fileChunk,
-                ...be32(pos),
-                ...data.subarray(pos, pos + SLFS_BLOCK_SIZE),
-            ]);
-            const status = await this.lastStatus();
-            if (status !== STATUS_OK) throw new Cc3200Error("writeFailed", { name, pos });
+        try {
+            for (let pos = 0; pos < data.length; pos += SLFS_BLOCK_SIZE) {
+                await this.sendPacket([
+                    OP.fileChunk,
+                    ...be32(pos),
+                    ...data.subarray(pos, pos + SLFS_BLOCK_SIZE),
+                ]);
+                const status = await this.lastStatus();
+                if (status !== STATUS_OK) throw new Cc3200Error("writeFailed", { name, pos });
+            }
+        } catch (e) {
+            // left open, the next write could not open its file
+            await this.closeFile().catch(() => undefined);
+            throw e;
         }
         await this.closeFile();
         if (!equal(await this.readFileOnce(name), data))

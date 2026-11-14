@@ -44,6 +44,7 @@ export const ShareDialog = ({
     const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
     const [owners, setOwners] = useState<string[]>([]);
+    const [savedOwners, setSavedOwners] = useState<string[]>([]);
     const [rows, setRows] = useState<Row[]>([]);
     const [users, setUsers] = useState<AclUser[]>([]);
     const [rights, setRights] = useState<string[]>([]);
@@ -64,6 +65,7 @@ export const ShareDialog = ({
                 ]);
                 if (cancelled) return;
                 setOwners(entry.owners ?? []);
+                setSavedOwners(entry.owners ?? []);
                 setRows(
                     Object.entries(entry.shares ?? {}).map(([user, list]) => toRow(user, list)),
                 );
@@ -110,6 +112,12 @@ export const ShareDialog = ({
 
     const update = (index: number, change: Partial<Row>) =>
         setRows((list) => list.map((row, i) => (i === index ? { ...row, ...change } : row)));
+
+    // a non-admin adds owners and removes only himself
+    const keptOwner = (user: string) =>
+        !acl.admin &&
+        savedOwners.includes(user) &&
+        user.toLowerCase() !== acl.username.toLowerCase();
 
     // the server refuses an owner list without owners from a non-admin
     const ownerMissing = ownersOnly && !acl.admin && owners.length === 0;
@@ -171,7 +179,11 @@ export const ShareDialog = ({
                             onChange={setOwners}
                             options={users
                                 .filter((u) => ownersOnly || u.level !== "guest")
-                                .map((u) => ({ value: u.username, label: u.username }))}
+                                .map((u) => ({
+                                    value: u.username,
+                                    label: u.username,
+                                    disabled: keptOwner(u.username),
+                                }))}
                             placeholder={t("sharing.noOwners")}
                         />
                         <Text type={ownerMissing ? "danger" : "secondary"} style={{ fontSize: 12 }}>

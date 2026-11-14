@@ -23,6 +23,10 @@ export const imageLabel = (image: CfwImage, channelName: string) =>
 export const platformOf = (item: { platform?: CfwPlatform }): CfwPlatform =>
     item.platform === "esp32" ? "esp32" : "cc3200";
 
+/** the library image of the box's platform with that build (builds repeat across platforms) */
+export const imageOfBox = (images: CfwImage[], box: CfwBox, build: number) =>
+    images.find((image) => image.build === build && platformOf(image) === platformOf(box));
+
 /** the box gets the setup page of the image at its next start with teddyCloud: the image has one
  * and it is not the one the box reported last */
 export const pageOffered = (box: CfwBox, image?: CfwImage) =>

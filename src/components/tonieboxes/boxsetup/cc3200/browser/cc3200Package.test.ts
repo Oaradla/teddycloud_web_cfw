@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import JSZip from "jszip";
 
 import {
+    bootloaderPlan,
     cardConfig,
     cc3200Releases,
     hostOnly,
@@ -54,5 +55,29 @@ describe("hostOnly", () => {
         expect(hostOnly(" https://teddycloud.local/web ")).toBe("teddycloud.local");
         expect(hostOnly("192.168.1.5:443")).toBe("192.168.1.5");
         expect(hostOnly("tc_box")).toBe("tcbox");
+    });
+});
+
+describe("bootloaderPlan", () => {
+    const bytes = (s: string) => new TextEncoder().encode(s);
+    const original = bytes("original bootloader");
+    const preloader = bytes("preloader /revvox/boot/ngbootloader.bin v2");
+    const fragment = bytes("origi");
+
+    it("moves the original first, then writes the preloader", () => {
+        expect(bootloaderPlan(original, undefined, false, preloader)).toBe("move");
+        expect(bootloaderPlan(preloader, original, false, preloader)).toBe("upToDate");
+        expect(
+            bootloaderPlan(bytes("/revvox/boot/ngbootloader.bin v1"), original, false, preloader),
+        ).toBe("write");
+        expect(bootloaderPlan(undefined, original, false, preloader)).toBe("write");
+        expect(bootloaderPlan(undefined, undefined, false, preloader)).toBe("noMcuimg");
+    });
+
+    it("never moves mcuimg.bin after a run that broke off", () => {
+        expect(bootloaderPlan(fragment, original, true, preloader)).toBe("write");
+        expect(bootloaderPlan(undefined, original, true, preloader)).toBe("write");
+        expect(bootloaderPlan(fragment, undefined, true, preloader)).toBe("noOriginal");
+        expect(bootloaderPlan(fragment, preloader, true, preloader)).toBe("noOriginal");
     });
 });

@@ -14,6 +14,8 @@ import {
 import { scrollToTop } from "../../../../../../utils/browser/browserUtils";
 import { useGetSettingLogLevel } from "../../../../../../hooks/getsettings/useGetSettingLogLevel";
 import { checkAssetsCertPartition } from "../helper/checkAssetsCertPartition";
+import { withCfw } from "../helper/cfwInstall";
+import { cfwApi } from "../../../../../../api/cfwApi";
 import { TFunction } from "i18next";
 import {
     installConsoleLogCapture,
@@ -63,6 +65,8 @@ export interface ESP32Flasher {
     downloadLinkPatched: string;
     error: boolean;
     resetBox: boolean;
+    /** the custom firmware to write beside the original firmware, 0: none */
+    cfwBuild: number;
 }
 
 export interface UseESP32FlasherResult {
@@ -175,6 +179,7 @@ export const useESP32Flasher = (
         downloadLinkPatched: "",
         error: false,
         resetBox: false,
+        cfwBuild: 0,
     });
 
     const [isSupported, setIsSupported] = useState(false);
@@ -1251,7 +1256,17 @@ export const useESP32Flasher = (
                 );
             }
 
-            const data = new Uint8Array(state.patchedFlash as ArrayBuffer);
+            let data = new Uint8Array(state.patchedFlash as ArrayBuffer);
+            if (state.cfwBuild) {
+                const host =
+                    state.hostname + (Number(state.apiPort) !== 443 ? `:${state.apiPort}` : "");
+                const install = withCfw(data, await cfwApi.esp32Image(state.cfwBuild, host));
+                console.info("[ESP32][Revvox] writeFlash: custom firmware into app slot", {
+                    build: state.cfwBuild,
+                    slot: install.slot,
+                });
+                data = install.flash;
+            }
             const totalSize = data.length;
             const sizeMb = totalSize / 1024 / 1024;
 

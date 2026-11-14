@@ -18,6 +18,7 @@ import {
     channelKey,
     esp32Installs,
     imageLabel,
+    imageOfBox,
     imagesForBox,
     pageOffered,
     platformOf,
@@ -125,7 +126,7 @@ export const BoxesCard: React.FC<BoxesCardProps> = ({ boxes, images, loading, on
                         </>
                     );
                 // version and revision are known when the running build is in the library
-                const running = images.find((image) => image.build === box.version);
+                const running = imageOfBox(images, box, box.version);
                 return (
                     <>
                         {running && (
@@ -245,7 +246,7 @@ export const BoxesCard: React.FC<BoxesCardProps> = ({ boxes, images, loading, on
                 if (!box.update.next) {
                     return <Text type="secondary">{t("cfw.update.nothing")}</Text>;
                 }
-                const offered = images.find((image) => image.build === box.update.next);
+                const offered = imageOfBox(images, box, box.update.next);
                 if (offered?.original) {
                     return (
                         <Tooltip title={t("cfw.update.esp32ReturnHint")}>

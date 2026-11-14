@@ -21,20 +21,22 @@ import { useTeddyCloud } from "../../../../../provider/TeddyCloudProvider";
 import { NotificationTypeEnum } from "../../../../../types/teddyCloudNotificationTypes";
 import nwpBootloaderUrl from "./rbtl3100s.dll?url";
 import { Cc3200, Cc3200Error, ResetMode } from "./protocol";
-import { macOfCertificate, packageFiles, saveZip } from "./cc3200Package";
+import {
+    bootloaderPlan,
+    isPreloader,
+    macOfCertificate,
+    packageFiles,
+    PRELOADER_PENDING,
+    saveZip,
+} from "./cc3200Package";
 import { CC3200SdCard, useCc3200Releases } from "./CC3200SdCard";
 import { StatusLine, StepResult } from "./StatusLine";
 
 const { Paragraph, Text } = Typography;
 
-const equal = (a: Uint8Array, b: Uint8Array) =>
-    a.length === b.length && a.every((x, i) => x === b[i]);
-
-/** a HackieboxNG preloader names the SD bootloader it starts; the box's original bootloader does not */
-const isPreloader = (image: Uint8Array) =>
-    new TextDecoder("latin1").decode(image).includes("/revvox/boot/ngbootloader.bin");
-
 const k = "tonieboxes.cc3200BoxFlashing.browser.";
+
+type ReadFailures = Awaited<ReturnType<Cc3200["readAllFiles"]>>["failed"];
 
 /** asks before leaving the page while something is written to the box */
 function useBusyGuard(busy: boolean) {
@@ -70,10 +72,15 @@ export function CC3200BrowserSetup({ onShowBoxes }: { onShowBoxes: () => void })
     const [result, setResult] = useState<StepResult>(null);
     const [progress, setProgress] = useState(0);
     const [log, setLog] = useState<string[]>([]);
-    const backup = useRef<{ flash: Uint8Array; files: Map<string, Uint8Array> } | null>(null);
+    const backup = useRef<{
+        flash: Uint8Array;
+        files: Map<string, Uint8Array>;
+        failed: ReadFailures;
+        mac: string;
+    } | null>(null);
     const [backupSaved, setBackupSaved] = useState(false);
     const [storedName, setStoredName] = useState("");
-    const [failed, setFailed] = useState<Awaited<ReturnType<Cc3200["readAllFiles"]>>["failed"]>([]);
+    const [failed, setFailed] = useState<ReadFailures>([]);
     const [mac, setMac] = useState("");
     const [certsDone, setCertsDone] = useState(false);
     const [bootloaderDone, setBootloaderDone] = useState(false);
@@ -116,6 +123,15 @@ export function CC3200BrowserSetup({ onShowBoxes }: { onShowBoxes: () => void })
     const connectAndBackUp = () =>
         run(async () => {
             const port = await navigator.serial.requestPort();
+            // maybe another box: nothing of the one before counts
+            const before = backup.current;
+            backup.current = null;
+            setFailed([]);
+            setMac("");
+            setBackupSaved(false);
+            setStoredName("");
+            setCertsDone(false);
+            setBootloaderDone(false);
             setStatus(t(k + "connecting"));
             const cc = await Cc3200.connect(port, {
                 gateway,
@@ -144,10 +160,15 @@ export function CC3200BrowserSetup({ onShowBoxes }: { onShowBoxes: () => void })
                     setProgress((i + 1) / n);
                 })
                 .catch(closeOnError);
-            backup.current = { flash, files: all.files };
-            setFailed(all.failed);
             const client = all.files.get("/cert/client.der");
             const found = client ? macOfCertificate(client) : "";
+            // the same box again: its first backup still has the original bootloader, which a
+            // broken write since may have moved or damaged
+            backup.current =
+                found && before?.mac === found
+                    ? before
+                    : { flash, files: all.files, failed: all.failed, mac: found };
+            setFailed(backup.current.failed);
             setMac(found);
             const done = t(k + "backupDone", {
                 files: all.files.size,
@@ -211,21 +232,31 @@ export function CC3200BrowserSetup({ onShowBoxes }: { onShowBoxes: () => void })
                 await packageFiles(await cfwApi.package(release!.build), "cc3200/flash/")
             )["sys/mcuimg.bin"];
             if (!preloader) throw new Error(t(k + "errors." + "noPreloader"));
-            const current = backup.current!.files.get("/sys/mcuimg.bin");
-            if (!current) throw new Error(t(k + "errors." + "noMcuimg"));
-            if (isPreloader(current)) {
-                // HackieboxNG is there: the original stays in pre-img.bin
-                addLog(t(k + "hasHackiebox"));
-                if (equal(current, preloader)) {
-                    setBootloaderDone(true);
-                    return t(k + "bootloaderUpToDate");
-                }
-            } else {
-                // also over a pre-img.bin an earlier, failed run left behind
-                await cc.writeFile("/sys/pre-img.bin", current);
-                addLog("original bootloader moved to /sys/pre-img.bin");
+            const files = backup.current!.files;
+            const current = files.get("/sys/mcuimg.bin");
+            const pending = await cc.exists(PRELOADER_PENDING);
+            const moved =
+                files.get("/sys/pre-img.bin") ??
+                ((await cc.exists("/sys/pre-img.bin"))
+                    ? await cc.readFile("/sys/pre-img.bin")
+                    : undefined);
+            const plan = bootloaderPlan(current, moved, pending, preloader);
+            if (plan === "noMcuimg" || plan === "noOriginal")
+                throw new Error(t(k + "errors." + plan));
+            if (current && isPreloader(current)) addLog(t(k + "hasHackiebox"));
+            if (plan === "upToDate") {
+                setBootloaderDone(true);
+                return t(k + "bootloaderUpToDate");
             }
+            if (plan === "move") {
+                await cc.writeFile("/sys/pre-img.bin", current!);
+                addLog("original bootloader moved to /sys/pre-img.bin");
+            } else if (pending || !current) {
+                addLog("original bootloader already in /sys/pre-img.bin");
+            }
+            await cc.writeFile(PRELOADER_PENDING, Uint8Array.of(0x31));
             await cc.writeFile("/sys/mcuimg.bin", preloader);
+            await cc.deleteFile(PRELOADER_PENDING);
             addLog("preloader written to /sys/mcuimg.bin");
             setBootloaderDone(true);
             notify("success", t(k + "bootloaderDone"));

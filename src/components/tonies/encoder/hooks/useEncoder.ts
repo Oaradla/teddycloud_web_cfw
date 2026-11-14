@@ -16,7 +16,7 @@ import {
 } from "../../../../utils/validation/fieldInputValidator";
 import { ffmpegSupportedExtensions } from "../../../../utils/files/ffmpegSupportedExtensions";
 import { createQueryString } from "../../../../utils/browser/queryParams";
-import { confirmReplace } from "../../../../utils/teddycloud/confirmReplace";
+import { ask, confirmReplace } from "../../../../utils/teddycloud/confirmReplace";
 import {
     loadWasmEncoder,
     isWasmEncoderAvailable,
@@ -29,6 +29,7 @@ import {
     BrowserEncodeError,
     Encoder,
     hasTapBuild,
+    oldPlaylistParts,
     PartsStep,
     uploadInParts,
 } from "../../../../utils/audio/partsUpload";
@@ -364,7 +365,7 @@ export const useEncoder = () => {
     };
 
     /** the fast way for several files; false when the server cannot join TAFs (then the old way) */
-    const uploadParts = async (encoder: Encoder) => {
+    const uploadParts = async (encoder: Encoder, oldParts: string[]) => {
         if (fileList.length < 2 || !(await hasTapBuild())) return false;
         const files = fileList;
         const name = tafFilename;
@@ -380,6 +381,7 @@ export const useEncoder = () => {
             playlist: splitIntoPlaylist,
             encoder,
             bitrate,
+            oldParts,
         };
         const step = (s: PartsStep, fraction: number) =>
             addLoadingNotification(
@@ -440,17 +442,36 @@ export const useEncoder = () => {
         return true;
     };
 
-    /** asks before an existing TAF (or playlist folder) of that name is replaced */
-    const replaceConfirmed = () =>
-        confirmReplace(
-            t,
-            `path=${encodeURIComponent(getPathFromNodeId(treeNodeId))}&special=library`,
-            [splitIntoPlaylist && fileList.length > 1 ? tafFilename : tafFilename + ".taf"],
-        );
+    /** asks before an existing TAF (or playlist folder) of that name is replaced; null: cancelled,
+     * else the parts of an earlier playlist upload that go */
+    const replaceConfirmed = async (): Promise<string[] | null> => {
+        const folder = getPathFromNodeId(treeNodeId);
+        const playlist = splitIntoPlaylist && fileList.length > 1;
+        if (playlist && (await hasTapBuild())) {
+            const titles = fileList.map((f) => trackTitle(f.name));
+            const old = await oldPlaylistParts({ folder, name: tafFilename, titles });
+            if (old.length)
+                return (await ask(
+                    t("tonies.encoder.parts.oldPartsTitle"),
+                    t("tonies.encoder.parts.oldPartsText", {
+                        count: old.length,
+                        names: old.join(", "),
+                    }),
+                    t,
+                ))
+                    ? old
+                    : null;
+        }
+        const ok = await confirmReplace(t, `path=${encodeURIComponent(folder)}&special=library`, [
+            playlist ? tafFilename : tafFilename + ".taf",
+        ]);
+        return ok ? [] : null;
+    };
 
     const handleUpload = async () => {
-        if (!(await replaceConfirmed())) return;
-        if (await uploadParts("server")) return;
+        const oldParts = await replaceConfirmed();
+        if (!oldParts) return;
+        if (await uploadParts("server", oldParts)) return;
         setUploading(true);
         const formData = new FormData();
         const key = "encoding-" + tafFilename + ".taf";
@@ -542,8 +563,9 @@ export const useEncoder = () => {
     // -------------------------------------------------
 
     const handleWasmUpload = async () => {
-        if (!(await replaceConfirmed())) return;
-        if (await uploadParts("browser")) return;
+        const oldParts = await replaceConfirmed();
+        if (!oldParts) return;
+        if (await uploadParts("browser", oldParts)) return;
         setUploading(true);
         setProcessing(true);
         const key = "encoding-" + tafFilename + ".taf";

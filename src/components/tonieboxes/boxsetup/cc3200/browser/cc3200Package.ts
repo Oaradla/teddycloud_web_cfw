@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 
 import { CfwImage } from "../../../../../api/cfwApi";
+import { equal } from "./protocol";
 
 /** the files of a release package below prefix, without it */
 export async function packageFiles(pkg: Uint8Array, prefix: string) {
@@ -63,4 +64,29 @@ export function cardConfig(host: string, port: string) {
     if (port.trim() && port.trim() !== "443") lines.push(`port=${port.trim()}`);
     lines.push("ca=c2.der");
     return new TextEncoder().encode(lines.join("\n") + "\n");
+}
+
+/** a HackieboxNG preloader names the SD bootloader it starts; the box's original bootloader does not */
+export const isPreloader = (image: Uint8Array) =>
+    new TextDecoder("latin1").decode(image).includes("/revvox/boot/ngbootloader.bin");
+
+/** on the box while the preloader is written: /sys/mcuimg.bin is then no original */
+export const PRELOADER_PENDING = "/sys/cfw-preloader.pending";
+
+/**
+ * What the bootloader step does with /sys/mcuimg.bin (current) and /sys/pre-img.bin (moved): move
+ * the original to pre-img.bin first, or only write the preloader, or nothing; an error key otherwise.
+ */
+export function bootloaderPlan(
+    current: Uint8Array | undefined,
+    moved: Uint8Array | undefined,
+    pending: boolean,
+    preloader: Uint8Array,
+): "move" | "write" | "upToDate" | "noMcuimg" | "noOriginal" {
+    const original = !!moved && !isPreloader(moved);
+    // an earlier run broke off: mcuimg.bin may be a fragment, the original is in pre-img.bin
+    if (pending) return original ? "write" : "noOriginal";
+    if (!current) return original ? "write" : "noMcuimg";
+    if (isPreloader(current)) return equal(current, preloader) ? "upToDate" : "write";
+    return "move";
 }

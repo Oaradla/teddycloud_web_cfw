@@ -21,6 +21,7 @@ const BOX_SETTING = {
     slapLock: "cfw.box.slap_lock",
     tiltLock: "cfw.box.tilt_lock",
     volumeLock: "cfw.box.volume_lock",
+    globalResume: "cfw.global_resume",
 } as const;
 type BoxKey = keyof typeof BOX_SETTING;
 
@@ -33,7 +34,8 @@ const useBoxValues = () => {
             (Object.keys(BOX_SETTING) as BoxKey[]).map(async (key) => {
                 const response = await api.apiGetTeddyCloudSettingRaw(BOX_SETTING[key]);
                 const text = (await response.text()).trim();
-                return [key, key.endsWith("Lock") ? text === "true" : Number(text)] as const;
+                const isBool = text === "true" || text === "false";
+                return [key, isBool ? text === "true" : Number(text)] as const;
             }),
         )
             .then((entries) => current && setValues(Object.fromEntries(entries)))
@@ -62,24 +64,24 @@ interface CfwProfileFormProps {
 /** the settings of a figure; without a value of its own the figure does what the box does */
 export const CfwProfileForm: React.FC<CfwProfileFormProps> = ({ profile, onChange }) => {
     const { t } = useTranslation();
-    const { boxes } = useCfwBoxes({ active: profile.globalResume === true });
-    const oldBoxes =
-        profile.globalResume === true ? cfwWithoutCapability(boxes, CFW_CAP.globalResume) : [];
     const set = (key: keyof CfwProfile, value: boolean | number | null) =>
         onChange({ ...profile, [key]: value });
 
     const box = useBoxValues();
     const effective = (key: BoxKey) => profile[key] ?? box[key];
+    const globalResume = effective("globalResume") === true;
+    const { boxes } = useCfwBoxes({ active: globalResume });
+    const oldBoxes = globalResume ? cfwWithoutCapability(boxes, CFW_CAP.globalResume) : [];
 
     /** a function the box does not know: off is the same as no value */
-    const toggle = (key: "resume" | "globalResume" | "shuffle", implied = false) => (
+    const toggle = (key: "resume" | "shuffle", implied = false) => (
         <Switch
             disabled={implied}
             checked={implied || profile[key] === true}
             onChange={(on) => set(key, on ? true : null)}
         />
     );
-    const lockSwitch = (key: "slapLock" | "tiltLock" | "volumeLock") => (
+    const boolSwitch = (key: "slapLock" | "tiltLock" | "volumeLock" | "globalResume") => (
         <Switch checked={effective(key) === true} onChange={(on) => set(key, on)} />
     );
     const numberSelect = (key: BoxKey, options: { value: number; label: string }[]) => (
@@ -89,10 +91,13 @@ export const CfwProfileForm: React.FC<CfwProfileFormProps> = ({ profile, onChang
             options={options}
         />
     );
-    /** whether the figure has a value of its own, with the way back to the box's */
-    const origin = (key: BoxKey) =>
-        profile[key] === null ? (
-            <Text type="secondary">{t("cfw.profile.fromBox")}</Text>
+    /** whether the figure has a value of its own, with the way back to the box's (global resume: the server's) */
+    const origin = (key: BoxKey) => {
+        const fromServer = key === "globalResume";
+        return profile[key] === null ? (
+            <Text type="secondary">
+                {t(fromServer ? "cfw.profile.fromSettings" : "cfw.profile.fromBox")}
+            </Text>
         ) : (
             <Space size={4}>
                 <Text type="warning">{t("cfw.profile.ownValue")}</Text>
@@ -102,10 +107,11 @@ export const CfwProfileForm: React.FC<CfwProfileFormProps> = ({ profile, onChang
                     icon={<UndoOutlined />}
                     onClick={() => set(key, null)}
                 >
-                    {t("cfw.profile.useBox")}
+                    {t(fromServer ? "cfw.profile.useSettings" : "cfw.profile.useBox")}
                 </Button>
             </Space>
         );
+    };
     const volumeOptions = VOLUME_STEPS.map((step) => ({
         value: step,
         label: t("cfw.volumeStep", { step }),
@@ -144,25 +150,32 @@ export const CfwProfileForm: React.FC<CfwProfileFormProps> = ({ profile, onChang
             key: "resume",
             label: t("cfw.profile.resume"),
             // global resume includes resume: shown as on and locked
-            hint: profile.globalResume
-                ? t("cfw.profile.resumeByGlobal")
-                : t("cfw.profile.resumeHint"),
+            hint: globalResume ? t("cfw.profile.resumeByGlobal") : t("cfw.profile.resumeHint"),
             span: 12,
-            input: toggle("resume", profile.globalResume === true),
+            input: toggle("resume", globalResume),
         },
         {
             key: "globalResume",
             label: t("cfw.profile.globalResume"),
             hint: t("cfw.profile.globalResumeHint"),
-            extra: oldBoxes.length > 0 && (
-                <Text type="warning">
-                    {t("cfw.profile.globalResumeOld", {
-                        boxes: oldBoxes.map((b) => b.boxName || b.commonName || b.id).join(", "),
-                    })}
-                </Text>
+            extra: (
+                <>
+                    {origin("globalResume")}
+                    {oldBoxes.length > 0 && (
+                        <div>
+                            <Text type="warning">
+                                {t("cfw.profile.globalResumeOld", {
+                                    boxes: oldBoxes
+                                        .map((b) => b.boxName || b.commonName || b.id)
+                                        .join(", "),
+                                })}
+                            </Text>
+                        </div>
+                    )}
+                </>
             ),
             span: 12,
-            input: toggle("globalResume"),
+            input: boolSwitch("globalResume"),
         },
         {
             key: "shuffle",
@@ -208,7 +221,7 @@ export const CfwProfileForm: React.FC<CfwProfileFormProps> = ({ profile, onChang
             hint: t("cfw.profile.lockHint"),
             span: 8,
             extra: origin("slapLock"),
-            input: lockSwitch("slapLock"),
+            input: boolSwitch("slapLock"),
         },
         {
             key: "tiltLock",
@@ -216,7 +229,7 @@ export const CfwProfileForm: React.FC<CfwProfileFormProps> = ({ profile, onChang
             hint: t("cfw.profile.lockHint"),
             span: 8,
             extra: origin("tiltLock"),
-            input: lockSwitch("tiltLock"),
+            input: boolSwitch("tiltLock"),
         },
         {
             key: "volumeLock",
@@ -224,7 +237,7 @@ export const CfwProfileForm: React.FC<CfwProfileFormProps> = ({ profile, onChang
             hint: t("cfw.profile.lockHint"),
             span: 8,
             extra: origin("volumeLock"),
-            input: lockSwitch("volumeLock"),
+            input: boolSwitch("volumeLock"),
         },
     ];
 

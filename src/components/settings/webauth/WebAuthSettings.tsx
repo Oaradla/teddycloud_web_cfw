@@ -112,12 +112,16 @@ export const WebAuthSettings = () => {
         void load();
     }, []);
 
+    /** runs the action; an error is shown above and returned */
     const handle = async (action: () => Promise<void>) => {
         setError(null);
         try {
             await action();
+            return null;
         } catch (err) {
-            setError(authErrorText(t, err));
+            const text = authErrorText(t, err);
+            setError(text);
+            return text;
         }
     };
 

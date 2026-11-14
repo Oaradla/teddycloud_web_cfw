@@ -347,7 +347,13 @@ export const Flashing: React.FC = () => {
                     />
                 );
             case ESP32_FLASH_STEPS.WRITE:
-                return <Step3FlashESP32 state={state} contentProgress={contentProgress} />;
+                return (
+                    <Step3FlashESP32
+                        state={state}
+                        setState={setState}
+                        contentProgress={contentProgress}
+                    />
+                );
             case ESP32_FLASH_STEPS.FINISH:
                 return (
                     <Step4AfterFlash

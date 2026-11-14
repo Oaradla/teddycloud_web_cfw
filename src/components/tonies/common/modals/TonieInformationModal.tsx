@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Modal, Typography, Button, Tooltip, Flex } from "antd";
+import { Modal, Typography, Button, Tooltip, Flex, Popconfirm, Space } from "antd";
 
 import { Record } from "../../../../types/fileBrowserTypes";
 import { TonieCardProps } from "../../../../types/tonieTypes";
@@ -38,6 +38,10 @@ interface InformationModalProps {
     lastRUIDs?: Array<[string, string, string]>;
     overlay?: string;
     onHide?: (ruid: string) => void;
+    onVerify?: () => void;
+    isVerifying?: boolean;
+    onRedownload?: () => void;
+    isRedownloading?: boolean;
 }
 
 const TonieInformationModal: React.FC<InformationModalProps> = ({
@@ -49,6 +53,10 @@ const TonieInformationModal: React.FC<InformationModalProps> = ({
     lastRUIDs,
     overlay,
     onHide,
+    onVerify,
+    isVerifying,
+    onRedownload,
+    isRedownloading,
 }) => {
     const { t } = useTranslation();
     const { playAudio } = useAudioContext();
@@ -268,13 +276,40 @@ const TonieInformationModal: React.FC<InformationModalProps> = ({
 
     const informationModalFooter = (
         <div style={{ display: "flex", justifyContent: "space-between", width: "100%" }}>
-            <div>
-                {canHide && (
+            <Space wrap>
+                {canHide ? (
                     <Button onClick={showHideConfirmDialog}>
                         {t("tonies.informationModal.hideTag")}
                     </Button>
-                )}
-            </div>
+                ) : null}
+                {onVerify &&
+                !readOnly &&
+                "exists" in tonieCardOrTAFRecord &&
+                tonieCardOrTAFRecord.exists ? (
+                    <Tooltip title={t("tonies.informationModal.verifyFileHint")}>
+                        <Button onClick={onVerify} loading={isVerifying} disabled={isRedownloading}>
+                            {t("tonies.informationModal.verifyFile")}
+                        </Button>
+                    </Tooltip>
+                ) : null}
+                {onRedownload && !readOnly ? (
+                    <Popconfirm
+                        title={t("tonies.informationModal.redownloadConfirm")}
+                        onConfirm={onRedownload}
+                        okText={t("tonies.informationModal.redownload")}
+                    >
+                        <Button
+                            danger={
+                                "corrupt" in tonieCardOrTAFRecord && tonieCardOrTAFRecord.corrupt
+                            }
+                            loading={isRedownloading}
+                            disabled={isVerifying}
+                        >
+                            {t("tonies.informationModal.redownload")}
+                        </Button>
+                    </Popconfirm>
+                ) : null}
+            </Space>
             <Button type="primary" onClick={onClose}>
                 {t("tonies.informationModal.ok")}
             </Button>
@@ -354,9 +389,18 @@ const TonieInformationModal: React.FC<InformationModalProps> = ({
                     {"valid" in tonieCardOrTAFRecord ? (
                         <p>
                             <strong>{t("tonies.infoModal.valid")}</strong>{" "}
-                            {tonieCardOrTAFRecord.valid
+                            {tonieCardOrTAFRecord.valid &&
+                            !("corrupt" in tonieCardOrTAFRecord && tonieCardOrTAFRecord.corrupt)
                                 ? t("tonies.infoModal.yes")
                                 : t("tonies.infoModal.no")}
+                        </p>
+                    ) : (
+                        ""
+                    )}
+                    {"corrupt" in tonieCardOrTAFRecord && tonieCardOrTAFRecord.corrupt ? (
+                        <p>
+                            <strong>{t("tonies.infoModal.corrupt")}</strong>{" "}
+                            <Text type="danger">{t("tonies.infoModal.yes")}</Text>
                         </p>
                     ) : (
                         ""
